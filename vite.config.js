@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     allowedHosts: [
-      'synthesis-opens-while-yrs.trycloudflare.com'
+      'group-breakdown-elected-dose.trycloudflare.com'
     ]
   }
 
