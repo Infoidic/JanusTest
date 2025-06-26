@@ -11,7 +11,7 @@ const JanusTest = () => {
   const [remoteFeeds, setRemoteFeeds] = useState([]);
   const localStreamRef = useRef(new MediaStream());
   const [currentRemoteSubstream, setCurrentRemoteSubstream] = useState(0);
-
+  const currentRemoteSubstreamRef = useRef(currentRemoteSubstream);
 
   useEffect(() => {
     Janus.init({ debug: "all", callback: () => setJanusInitialized(true) });
@@ -58,7 +58,7 @@ const JanusTest = () => {
         { type: "video", capture: true, recv: false, 
           simulcast: true, // si se commenta este va por estandard full
           sendEncodings: [ // si se commenta este va por estandard full
-            // va leer siempre el primero
+            // va leer siempre el primero y ese es el valor de select
             { rid: "m", active: true, maxBitrate: 1200000 },  // Media
             { rid: "l", active: true, maxBitrate: 100000 },  // Baja podria estar en 600000
             { rid: "h", active: true, maxBitrate: 2500000 }, // Alta
@@ -100,7 +100,7 @@ const JanusTest = () => {
               ],
               success: (jsepAnswer) => {
                 pluginHandle.send({ message: { request: "start" }, jsep: jsepAnswer });
-                pluginHandle.send({ message: { request: "configure", substream: currentRemoteSubstream } });
+                pluginHandle.send({ message: { request: "configure", substream: currentRemoteSubstreamRef.current } });
               },
             });
           }
@@ -138,6 +138,11 @@ const JanusTest = () => {
       if (feed.ref.current) feed.ref.current.srcObject = feed.stream;
     });
   }, [remoteFeeds]);
+
+  useEffect(() => {
+    currentRemoteSubstreamRef.current = currentRemoteSubstream;
+}, [currentRemoteSubstream]);
+
 
   return (
     <div>
