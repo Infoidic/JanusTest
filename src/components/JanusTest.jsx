@@ -10,7 +10,7 @@ const JanusTest = () => {
   const [janusInitialized, setJanusInitialized] = useState(false);
   const [remoteFeeds, setRemoteFeeds] = useState([]);
   const localStreamRef = useRef(new MediaStream());
-  const [currentRemoteSubstream, setCurrentRemoteSubstream] = useState(1);
+  const [currentRemoteSubstream, setCurrentRemoteSubstream] = useState(0);
 
 
   useEffect(() => {
@@ -155,9 +155,9 @@ const JanusTest = () => {
       <div>
         <strong>📶 Calidad para todos:</strong>
         <select value={currentRemoteSubstream} onChange={(e) => switchAllRemoteQualities(parseInt(e.target.value))}>
-          <option value="0">Alta</option>
-          <option value="1">Media</option>
-          <option value="2">Baja</option>
+          <option value="2">Alta</option>
+          <option value="0">Media</option>
+          <option value="1">Baja</option>
         </select>
       </div>
 

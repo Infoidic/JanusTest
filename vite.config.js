@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     allowedHosts: [
-      'group-breakdown-elected-dose.trycloudflare.com'
+      'two-classification-haiti-vessels.trycloudflare.com'
     ]
   }
 
