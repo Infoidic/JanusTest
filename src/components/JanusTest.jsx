@@ -10,6 +10,8 @@ const JanusTest = () => {
   const [janusInitialized, setJanusInitialized] = useState(false);
   const [remoteFeeds, setRemoteFeeds] = useState([]);
   const localStreamRef = useRef(new MediaStream());
+  const [currentRemoteSubstream, setCurrentRemoteSubstream] = useState(1);
+
 
   useEffect(() => {
     Janus.init({ debug: "all", callback: () => setJanusInitialized(true) });
@@ -53,7 +55,15 @@ const JanusTest = () => {
     videoRoomPluginRef.current.createOffer({
       tracks: [
         { type: "audio", capture: true, recv: false },
-        { type: "video", capture: true, recv: false, simulcast: true },
+        { type: "video", capture: true, recv: false, 
+          simulcast: true, // si se commenta este va por estandard full
+          sendEncodings: [ // si se commenta este va por estandard full
+            // va leer siempre el primero
+            { rid: "m", active: true, maxBitrate: 1200000 },  // Media
+            { rid: "l", active: true, maxBitrate: 100000 },  // Baja podria estar en 600000
+            { rid: "h", active: true, maxBitrate: 2500000 }, // Alta
+          ]
+        },
       ],
       success: (jsep) => {
         videoRoomPluginRef.current.send({ message: { request: "configure", audio: true, video: true }, jsep });
@@ -90,6 +100,7 @@ const JanusTest = () => {
               ],
               success: (jsepAnswer) => {
                 pluginHandle.send({ message: { request: "start" }, jsep: jsepAnswer });
+                pluginHandle.send({ message: { request: "configure", substream: currentRemoteSubstream } });
               },
             });
           }
@@ -114,6 +125,7 @@ const JanusTest = () => {
         });
       }
     });
+    setCurrentRemoteSubstream(substream)
     console.log(`📶 Calidad de todos los remotos cambiada a substream: ${substream}`);
   };
 
@@ -142,7 +154,7 @@ const JanusTest = () => {
 
       <div>
         <strong>📶 Calidad para todos:</strong>
-        <select onChange={(e) => switchAllRemoteQualities(parseInt(e.target.value))}>
+        <select value={currentRemoteSubstream} onChange={(e) => switchAllRemoteQualities(parseInt(e.target.value))}>
           <option value="0">Alta</option>
           <option value="1">Media</option>
           <option value="2">Baja</option>
