@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     allowedHosts: [
-      'two-classification-haiti-vessels.trycloudflare.com'
+      'algorithm-merchants-insurance-signing.trycloudflare.com'
     ]
   }
 

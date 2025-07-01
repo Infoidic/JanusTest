@@ -5,13 +5,14 @@ window.adapter = adapter;
 
 const JanusTest = () => {
   const janusRef = useRef(null);
-  const videoRoomPluginRef = useRef(null);
+  const pluginHandleRef = useRef(null);
   const localVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
   const [janusInitialized, setJanusInitialized] = useState(false);
   const [remoteFeeds, setRemoteFeeds] = useState([]);
-  const localStreamRef = useRef(new MediaStream());
-  const [currentRemoteSubstream, setCurrentRemoteSubstream] = useState(0);
-  const currentRemoteSubstreamRef = useRef(currentRemoteSubstream);
+  const [currentSubstream, setCurrentSubstream] = useState(0);
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   useEffect(() => {
     Janus.init({ debug: "all", callback: () => setJanusInitialized(true) });
@@ -19,56 +20,89 @@ const JanusTest = () => {
 
   useEffect(() => {
     if (!janusInitialized) return;
-
     janusRef.current = new Janus({
       server: "wss://webrtc.testlorotest.xyz:8989/janus",
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      success: () => {
-        janusRef.current.attach({
-          plugin: "janus.plugin.videoroom",
-          success: (pluginHandle) => {
-            videoRoomPluginRef.current = pluginHandle;
-            pluginHandle.send({ message: { request: "join", room: 1234, ptype: "publisher", display: "yo" } });
-          },
-          onmessage: (msg, jsep) => {
-            if (msg.videoroom === "joined") publishOwnFeed();
-            if (msg.publishers) msg.publishers.forEach((p) => newRemoteFeed(p.id));
-            if (msg.videoroom === "event" && (msg.unpublished || msg.leaving)) {
-              const leavingId = msg.unpublished || msg.leaving;
-              removeRemoteFeed(leavingId);
-            }
-            if (jsep) videoRoomPluginRef.current.handleRemoteJsep({ jsep });
-          },
-          onlocaltrack: (track, on) => {
-            if (on) {
-              localStreamRef.current.addTrack(track);
-              localVideoRef.current.srcObject = localStreamRef.current;
-              localVideoRef.current.play();
-            }
-          },
-        });
-      },
+      success: attachPlugin,
     });
   }, [janusInitialized]);
 
-  const publishOwnFeed = () => {
-    videoRoomPluginRef.current.createOffer({
-      tracks: [
-        { type: "audio", capture: true, recv: false },
-        { type: "video", capture: true, recv: false, 
-          simulcast: true, // si se commenta este va por estandard full
-          sendEncodings: [ // si se commenta este va por estandard full
-            // va leer siempre el primero y ese es el valor de select
-            { rid: "m", active: true, maxBitrate: 1200000 },  // Media
-            { rid: "l", active: true, maxBitrate: 100000 },  // Baja podria estar en 600000
-            { rid: "h", active: true, maxBitrate: 2500000 }, // Alta
-          ]
-        },
-      ],
-      success: (jsep) => {
-        videoRoomPluginRef.current.send({ message: { request: "configure", audio: true, video: true }, jsep });
+  const attachPlugin = () => {
+    janusRef.current.attach({
+      plugin: "janus.plugin.videoroom",
+      success: (pluginHandle) => {
+        pluginHandleRef.current = pluginHandle;
+        pluginHandle.send({ message: { request: "join", room: 1234, ptype: "publisher", display: isMobile ? "mobile" : "desktop" } });
+      },
+      onmessage: (msg, jsep) => {
+        if (msg.videoroom === "joined") startCamera();
+        if (msg.videoroom === "event" && msg.publishers) {
+          msg.publishers.forEach((p) => newRemoteFeed(p.id));
+        }
+        if (msg.videoroom === "event" && (msg.unpublished || msg.leaving)) {
+          setRemoteFeeds((prev) => {
+            const leavingId = msg.unpublished || msg.leaving;
+            const toRemove = prev.find((f) => f.feedId === leavingId);
+            if (toRemove) toRemove.pluginHandle.detach();
+            return prev.filter((f) => f.feedId !== leavingId);
+          });
+        }
+        if (jsep) pluginHandleRef.current.handleRemoteJsep({ jsep });
+      },
+      onlocaltrack: (track, on) => {
+        if (on) {
+          if (!localStreamRef.current) localStreamRef.current = new MediaStream();
+          localStreamRef.current.addTrack(track);
+          localVideoRef.current.srcObject = localStreamRef.current;
+        }
       },
     });
+  };
+
+  const startCamera = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStreamRef.current = stream;
+    localVideoRef.current.srcObject = stream;
+
+    const tracks = stream.getTracks().map((track) => ({
+      type: track.kind,
+      capture: true,
+      recv: false,
+      simulcast: track.kind === "video" && !isMobile,
+      ...(track.kind === "video" && !isMobile && {
+        sendEncodings: [
+          { rid: "m", active: true, maxBitrate: 1200000 },
+          { rid: "l", active: true, maxBitrate: 600000 },
+          { rid: "h", active: true, maxBitrate: 2500000 },
+        ],
+      }),
+    }));
+
+    pluginHandleRef.current.createOffer({
+      stream,
+      tracks,
+      trickle: true,
+      success: (jsep) => {
+        pluginHandleRef.current.send({ message: { request: "configure", audio: true, video: true }, jsep });
+      },
+    });
+  };
+
+  const shareScreen = async () => {
+    if (isMobile) return alert("Compartir pantalla no está disponible en dispositivos móviles.");
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    const screenTrack = stream.getVideoTracks()[0];
+    const sender = pluginHandleRef.current.webrtcStuff.pc.getSenders().find((s) => s.track && s.track.kind === "video");
+    if (sender) await sender.replaceTrack(screenTrack);
+
+    localStreamRef.current.getTracks().forEach((t) => t.kind === "video" && t.stop());
+    localStreamRef.current.addTrack(screenTrack);
+    localVideoRef.current.srcObject = localStreamRef.current;
+
+    screenTrack.onended = () => {
+      pluginHandleRef.current.send({ message: { request: "unpublish" } });
+      setTimeout(() => startCamera(), 500);
+    };
   };
 
   const newRemoteFeed = (publisherId) => {
@@ -79,15 +113,14 @@ const JanusTest = () => {
         pluginHandle.onremotetrack = (track, mid, on) => {
           if (!on) return;
           setRemoteFeeds((prev) => {
-            const existing = prev.find((f) => f.feedId === publisherId);
-            if (existing) {
-              existing.stream.addTrack(track);
+            const exists = prev.find((f) => f.feedId === publisherId);
+            if (exists) {
+              exists.stream.addTrack(track);
               return [...prev];
-            } else {
-              const stream = new MediaStream([track]);
-              const ref = React.createRef();
-              return [...prev, { feedId: publisherId, stream, ref, pluginHandle }];
             }
+            const stream = new MediaStream([track]);
+            const ref = React.createRef();
+            return [...prev, { feedId: publisherId, stream, ref, pluginHandle }];
           });
         };
         pluginHandle.onmessage = (msg, jsep) => {
@@ -100,7 +133,7 @@ const JanusTest = () => {
               ],
               success: (jsepAnswer) => {
                 pluginHandle.send({ message: { request: "start" }, jsep: jsepAnswer });
-                pluginHandle.send({ message: { request: "configure", substream: currentRemoteSubstreamRef.current } });
+                pluginHandle.send({ message: { request: "configure", substream: currentSubstream } });
               },
             });
           }
@@ -109,40 +142,22 @@ const JanusTest = () => {
     });
   };
 
-  const removeRemoteFeed = (feedId) => {
-    setRemoteFeeds((prev) => {
-      const feedToRemove = prev.find((f) => f.feedId === feedId);
-      if (feedToRemove && feedToRemove.pluginHandle) feedToRemove.pluginHandle.detach();
-      return prev.filter((f) => f.feedId !== feedId);
+  const switchQuality = (substream) => {
+    setCurrentSubstream(substream);
+    remoteFeeds.forEach((f) => {
+      f.pluginHandle.send({ message: { request: "configure", substream } });
     });
-  };
-
-  const switchAllRemoteQualities = (substream) => {
-    remoteFeeds.forEach((feed) => {
-      if (feed.pluginHandle) {
-        feed.pluginHandle.send({
-          message: { request: "configure", substream },
-        });
-      }
-    });
-    setCurrentRemoteSubstream(substream)
-    console.log(`📶 Calidad de todos los remotos cambiada a substream: ${substream}`);
   };
 
   const configurePublisher = (audio, video) => {
-    videoRoomPluginRef.current.send({ message: { request: "configure", audio, video } });
+    pluginHandleRef.current.send({ message: { request: "configure", audio, video } });
   };
 
   useEffect(() => {
-    remoteFeeds.forEach((feed) => {
-      if (feed.ref.current) feed.ref.current.srcObject = feed.stream;
+    remoteFeeds.forEach((f) => {
+      if (f.ref.current) f.ref.current.srcObject = f.stream;
     });
   }, [remoteFeeds]);
-
-  useEffect(() => {
-    currentRemoteSubstreamRef.current = currentRemoteSubstream;
-}, [currentRemoteSubstream]);
-
 
   return (
     <div>
@@ -153,22 +168,20 @@ const JanusTest = () => {
         <button onClick={() => configurePublisher(true, true)}>Unmute Mic</button>
         <button onClick={() => configurePublisher(true, false)}>Apagar Cámara</button>
         <button onClick={() => configurePublisher(true, true)}>Encender Cámara</button>
+        <button onClick={shareScreen}>📺 Compartir Pantalla</button>
       </div>
-
       <h3>👥 Participantes Remotos</h3>
-
       <div>
-        <strong>📶 Calidad para todos:</strong>
-        <select value={currentRemoteSubstream} onChange={(e) => switchAllRemoteQualities(parseInt(e.target.value))}>
-          <option value="2">Alta</option>
+        <strong>📶 Calidad remota:</strong>
+        <select value={currentSubstream} onChange={(e) => switchQuality(parseInt(e.target.value))}>
           <option value="0">Media</option>
           <option value="1">Baja</option>
+          <option value="2">Alta</option>
         </select>
       </div>
-
-      {remoteFeeds.map((feed) => (
-        <div key={feed.feedId}>
-          <video ref={feed.ref} autoPlay playsInline style={{ width: "320px", border: "2px solid blue", margin: "5px" }} />
+      {remoteFeeds.map((f) => (
+        <div key={f.feedId}>
+          <video ref={f.ref} autoPlay playsInline style={{ width: "320px", border: "2px solid blue", margin: "5px" }} />
         </div>
       ))}
     </div>
