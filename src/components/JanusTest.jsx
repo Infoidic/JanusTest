@@ -102,15 +102,24 @@ const JanusTest = () => {
     const sender = pluginHandleRef.current.webrtcStuff.pc.getSenders().find((s) => s.track && s.track.kind === "video");
     if (sender) await sender.replaceTrack(screenTrack);
 
+    // Detener track de video anterior local
     localStreamRef.current.getTracks().forEach((t) => t.kind === "video" && t.stop());
+
+    // Actualizar localStreamRef solo con audio, mantenerlo
+    const audioTracks = localStreamRef.current.getAudioTracks();
+    localStreamRef.current = new MediaStream(audioTracks);
+
+    // Añadir screen track y actualizar video local
     localStreamRef.current.addTrack(screenTrack);
-    localVideoRef.current.srcObject = localStreamRef.current;
+    localVideoRef.current.srcObject = new MediaStream([screenTrack]);
 
     screenTrack.onended = () => {
+      console.log("xue")
       pluginHandleRef.current.send({ message: { request: "unpublish" } });
-      setTimeout(() => startCamera(), 500)
+      setTimeout(() => startCamera(), 500);
     };
   };
+
 
   const newRemoteFeed = (publisherId) => {
     if (remoteFeeds.find((f) => f.feedId === publisherId)) return;
