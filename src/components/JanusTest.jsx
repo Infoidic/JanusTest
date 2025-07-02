@@ -35,17 +35,24 @@ const JanusTest = () => {
         pluginHandle.send({ message: { request: "join", room: 1234, ptype: "publisher", display: isMobile ? "mobile" : "desktop" } });
       },
       onmessage: (msg, jsep) => {
-        if (msg.videoroom === "joined") startCamera();
-        if (msg.videoroom === "event" && msg.publishers) {
-          msg.publishers.forEach((p) => newRemoteFeed(p.id));
+        if (msg.videoroom === "joined") {
+          startCamera();
+          if (msg.publishers) {
+            msg.publishers.forEach((p) => newRemoteFeed(p.id));
+          }
         }
-        if (msg.videoroom === "event" && (msg.unpublished || msg.leaving)) {
-          setRemoteFeeds((prev) => {
+        if (msg.videoroom === "event") {
+          if (msg.publishers) {
+            msg.publishers.forEach((p) => newRemoteFeed(p.id));
+          }
+          if (msg.unpublished || msg.leaving) {
             const leavingId = msg.unpublished || msg.leaving;
-            const toRemove = prev.find((f) => f.feedId === leavingId);
-            if (toRemove) toRemove.pluginHandle.detach();
-            return prev.filter((f) => f.feedId !== leavingId);
-          });
+            setRemoteFeeds((prev) => {
+              const toRemove = prev.find((f) => f.feedId === leavingId);
+              if (toRemove) toRemove.pluginHandle.detach();
+              return prev.filter((f) => f.feedId !== leavingId);
+            });
+          }
         }
         if (jsep) pluginHandleRef.current.handleRemoteJsep({ jsep });
       },
@@ -89,7 +96,7 @@ const JanusTest = () => {
   };
 
   const shareScreen = async () => {
-    if (isMobile) return alert("Compartir pantalla no está disponible en dispositivos móviles.");
+    if (isMobile) return alert("Compartir pantalla no está disponible en móviles.");
     const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
     const screenTrack = stream.getVideoTracks()[0];
     const sender = pluginHandleRef.current.webrtcStuff.pc.getSenders().find((s) => s.track && s.track.kind === "video");
@@ -101,15 +108,18 @@ const JanusTest = () => {
 
     screenTrack.onended = () => {
       pluginHandleRef.current.send({ message: { request: "unpublish" } });
-      setTimeout(() => startCamera(), 500);
+      setTimeout(() => startCamera(), 500)
     };
   };
 
   const newRemoteFeed = (publisherId) => {
+    if (remoteFeeds.find((f) => f.feedId === publisherId)) return;
+
     janusRef.current.attach({
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
         pluginHandle.send({ message: { request: "join", room: 1234, ptype: "subscriber", feed: publisherId } });
+
         pluginHandle.onremotetrack = (track, mid, on) => {
           if (!on) return;
           setRemoteFeeds((prev) => {
@@ -123,6 +133,7 @@ const JanusTest = () => {
             return [...prev, { feedId: publisherId, stream, ref, pluginHandle }];
           });
         };
+
         pluginHandle.onmessage = (msg, jsep) => {
           if (jsep) {
             pluginHandle.createAnswer({
