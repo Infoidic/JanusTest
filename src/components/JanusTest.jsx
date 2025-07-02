@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
@@ -32,19 +33,24 @@ const JanusTest = () => {
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
         pluginHandleRef.current = pluginHandle;
-        pluginHandle.send({ message: { request: "join", room: 1234, ptype: "publisher", display: isMobile ? "mobile" : "desktop" } });
+        pluginHandle.send({
+          message: {
+            request: "join",
+            room: 1234,
+            ptype: "publisher",
+            display: isMobile ? "mobile" : "desktop",
+          },
+        });
       },
       onmessage: (msg, jsep) => {
         if (msg.videoroom === "joined") {
           startCamera();
-          if (msg.publishers) {
+          if (msg.publishers)
             msg.publishers.forEach((p) => newRemoteFeed(p.id));
-          }
         }
         if (msg.videoroom === "event") {
-          if (msg.publishers) {
+          if (msg.publishers)
             msg.publishers.forEach((p) => newRemoteFeed(p.id));
-          }
           if (msg.unpublished || msg.leaving) {
             const leavingId = msg.unpublished || msg.leaving;
             setRemoteFeeds((prev) => {
@@ -90,31 +96,31 @@ const JanusTest = () => {
       tracks,
       trickle: true,
       success: (jsep) => {
-        pluginHandleRef.current.send({ message: { request: "configure", audio: true, video: true }, jsep });
+        pluginHandleRef.current.send({
+          message: { request: "configure", audio: true, video: true },
+          jsep,
+        });
       },
     });
   };
 
+
   const shareScreen = async () => {
-    if (isMobile) return alert("Compartir pantalla no está disponible en móviles.");
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-    const screenTrack = stream.getVideoTracks()[0];
-    const sender = pluginHandleRef.current.webrtcStuff.pc.getSenders().find((s) => s.track && s.track.kind === "video");
+    if (isMobile) return alert("Compartir pantalla no disponible en móviles.");
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    const screenTrack = screenStream.getVideoTracks()[0];
+    
+    // Crear un stream local solo con ese track para visualizarlo localmente
+    const displayStream = new MediaStream([screenTrack]);
+    localVideoRef.current.srcObject = displayStream;
+
+    // Reemplazar en la conexión a Janus
+    const sender = pluginHandleRef.current.webrtcStuff.pc.getSenders().find(
+      (s) => s.track && s.track.kind === "video"
+    );
     if (sender) await sender.replaceTrack(screenTrack);
 
-    // Detener track de video anterior local
-    localStreamRef.current.getTracks().forEach((t) => t.kind === "video" && t.stop());
-
-    // Actualizar localStreamRef solo con audio, mantenerlo
-    const audioTracks = localStreamRef.current.getAudioTracks();
-    localStreamRef.current = new MediaStream(audioTracks);
-
-    // Añadir screen track y actualizar video local
-    localStreamRef.current.addTrack(screenTrack);
-    localVideoRef.current.srcObject = new MediaStream([screenTrack]);
-
     screenTrack.onended = () => {
-      console.log("xue")
       pluginHandleRef.current.send({ message: { request: "unpublish" } });
       setTimeout(() => startCamera(), 500);
     };
@@ -123,11 +129,12 @@ const JanusTest = () => {
 
   const newRemoteFeed = (publisherId) => {
     if (remoteFeeds.find((f) => f.feedId === publisherId)) return;
-
     janusRef.current.attach({
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
-        pluginHandle.send({ message: { request: "join", room: 1234, ptype: "subscriber", feed: publisherId } });
+        pluginHandle.send({
+          message: { request: "join", room: 1234, ptype: "subscriber", feed: publisherId },
+        });
 
         pluginHandle.onremotetrack = (track, mid, on) => {
           if (!on) return;
@@ -209,4 +216,3 @@ const JanusTest = () => {
 };
 
 export default JanusTest;
-
