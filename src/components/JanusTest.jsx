@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
@@ -121,8 +120,14 @@ const JanusTest = () => {
     if (sender) await sender.replaceTrack(screenTrack);
 
     screenTrack.onended = () => {
-      pluginHandleRef.current.send({ message: { request: "unpublish" } });
-      setTimeout(() => startCamera(), 500);
+    pluginHandleRef.current.send({ message: { request: "unpublish" } });
+    pluginHandleRef.current.hangup();
+    pluginHandleRef.current.detach();
+    
+    setTimeout(() => {
+      attachPlugin(); // ← volver a conectar un nuevo plugin publisher
+    }, 500);
+
     };
   };
 
