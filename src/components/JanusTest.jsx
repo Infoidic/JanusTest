@@ -11,7 +11,7 @@ const JanusTest = () => {
   const [janusInitialized, setJanusInitialized] = useState(false);
   const [remoteFeeds, setRemoteFeeds] = useState([]);
   const [currentSubstream, setCurrentSubstream] = useState(0);
-
+  const currentRemoteSubstreamRef = useRef(currentSubstream);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ const JanusTest = () => {
         sendEncodings: [
           { rid: "m", active: true, maxBitrate: 1200000 },
           { rid: "l", active: true, maxBitrate: 600000 },
-          { rid: "h", active: true, maxBitrate: 2500000 },
+          { rid: "h", active: true, maxBitrate: 3000000 },
         ],
       }),
     }));
@@ -94,7 +94,21 @@ const JanusTest = () => {
       stream,
       tracks,
       trickle: true,
-      success: (jsep) => {
+      success: async (jsep) => {
+        // 👈 Aquí aplicamos sendEncodings a nivel RTCRtpSender
+        const pc = pluginHandleRef.current.webrtcStuff.pc;
+        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (videoSender && !isMobile) {
+          const parameters = videoSender.getParameters();
+          parameters.encodings = [
+            { rid: "m", active: true, maxBitrate: 1200000 },
+            { rid: "l", active: true, maxBitrate: 600000 },
+            { rid: "h", active: true, maxBitrate: 3000000 },
+          ];
+          await videoSender.setParameters(parameters);
+          console.log("✅ Simulcast encodings seteados correctamente en RTCRtpSender");
+        } // Aquí aplicamos sendEncodings a nivel RTCRtpSender
+
         pluginHandleRef.current.send({
           message: { request: "configure", audio: true, video: true },
           jsep,
@@ -165,7 +179,7 @@ const JanusTest = () => {
               ],
               success: (jsepAnswer) => {
                 pluginHandle.send({ message: { request: "start" }, jsep: jsepAnswer });
-                pluginHandle.send({ message: { request: "configure", substream: currentSubstream } });
+                pluginHandle.send({ message: { request: "configure", substream: currentRemoteSubstreamRef.current } });
               },
             });
           }
@@ -190,6 +204,11 @@ const JanusTest = () => {
       if (f.ref.current) f.ref.current.srcObject = f.stream;
     });
   }, [remoteFeeds]);
+
+  useEffect(() => {
+    currentRemoteSubstreamRef.current = currentSubstream;
+  }, [currentSubstream]);
+
 
   return (
     <div>
