@@ -32,12 +32,40 @@ const JanusTest = () => {
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
         pluginHandleRef.current = pluginHandle;
+        const roomId = "1233";  // <-- aquí tu uuid dinámico desde props, state, url, etc.
+
+        // 1️⃣ Consultar si la sala existe
         pluginHandle.send({
-          message: {
-            request: "join",
-            room: 1234,
-            ptype: "publisher",
-            display: isMobile ? "mobile" : "desktop",
+          message: { request: "exists", room: roomId },
+          success: (result) => {
+            if (result.exists) {
+              console.log("✅ Sala ya existe, me uno.");
+              joinRoom(roomId);
+            } else {
+              console.log("⚙️ Sala no existe, creando...");
+              // 2️⃣ Crear sala
+              pluginHandle.send({
+                message: {
+                  request: "create",
+                  room: roomId,
+                  description: "Sala dinámica",
+                  publishers: 40,
+                  bitrate: 3000000,
+                  fir_freq: 10,
+                  simulcast: true,
+                },
+                success: (createResult) => {
+                  console.log("✅ Sala creada", createResult);
+                  joinRoom(roomId);
+                },
+                error: (err) => {
+                  console.error("❌ Error creando sala:", err);
+                },
+              });
+            }
+          },
+          error: (err) => {
+            console.error("❌ Error consultando sala:", err);
           },
         });
       },
@@ -70,6 +98,20 @@ const JanusTest = () => {
       },
     });
   };
+
+
+  const joinRoom = (roomId) => {
+    pluginHandleRef.current.send({
+      message: {
+        request: "join",
+        room: roomId,
+        ptype: "publisher",
+        display: isMobile ? "mobile" : "desktop",
+      },
+    });
+  };
+
+
 
   const startCamera = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -152,7 +194,7 @@ const JanusTest = () => {
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
         pluginHandle.send({
-          message: { request: "join", room: 1234, ptype: "subscriber", feed: publisherId },
+          message: { request: "join", room: "1233", ptype: "subscriber", feed: publisherId },
         });
 
         pluginHandle.onremotetrack = (track, mid, on) => {
