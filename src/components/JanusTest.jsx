@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
+import {useMeetSocket} from "../hooks/useMeetSocket";
 window.adapter = adapter;
 
 const JanusTest = () => {
@@ -13,6 +14,28 @@ const JanusTest = () => {
   const [currentSubstream, setCurrentSubstream] = useState(0);
   const currentRemoteSubstreamRef = useRef(currentSubstream);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // provisional
+  const meetId = useRef('03d0f0fa-1f24-435d-9190-9727f242c217')
+  const token = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzMzA1MjY1LCJpYXQiOjE3NTI0NDEyNjUsImp0aSI6ImE3MTdmZDM5NjgwZjRkY2NiZTcxYmMzYjhmMGM5NDMzIiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vDTYii32A3kIPpXcY3cyr577DiNkozmA_A6j94HHkG0')
+
+
+  const handleSocketMessage = (data) => {
+    console.log("🔸 Mensaje desde backend:", data);
+  };
+
+
+  const { connectSocket, sendMessage, closeSocket, isSocketConnect } = useMeetSocket({
+    meetId: meetId.current,
+    token: token.current,
+    onMessage: handleSocketMessage,
+    onOpen: () => console.log("🔗 Socket Django listo"),
+  });
+
+
+  useEffect (() => {
+    connectSocket();
+    return () => closeSocket();
+  }, []);
 
   useEffect(() => {
     Janus.init({ debug: "all", callback: () => setJanusInitialized(true) });
@@ -25,6 +48,15 @@ const JanusTest = () => {
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
       success: attachPlugin,
     });
+
+    return () => {
+      if (janusRef.current) {
+        janusRef.current.destroy();
+        janusRef.current = null;
+      }
+    };
+
+
   }, [janusInitialized]);
 
   const attachPlugin = () => {
@@ -110,6 +142,7 @@ const JanusTest = () => {
       },
     });
   };
+
 
 
 
