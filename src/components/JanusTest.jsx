@@ -14,32 +14,96 @@ const JanusTest = () => {
   const [currentSubstream, setCurrentSubstream] = useState(0);
   const currentRemoteSubstreamRef = useRef(currentSubstream);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  const [socketReady, setSocketReady] = useState(false); 
+  
+
+  const [meetIdUser, setMeetIdUser] = useState('');
+  const [tokenUser, setTokenUser] = useState('');
+
+
+  const [remoteUsers, setRemoteUsers] = useState([])
+
+
   // provisional
   const meetId = useRef('03d0f0fa-1f24-435d-9190-9727f242c217')
-  const token = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzMzA1MjY1LCJpYXQiOjE3NTI0NDEyNjUsImp0aSI6ImE3MTdmZDM5NjgwZjRkY2NiZTcxYmMzYjhmMGM5NDMzIiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vDTYii32A3kIPpXcY3cyr577DiNkozmA_A6j94HHkG0')
+  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzMzA1MjY1LCJpYXQiOjE3NTI0NDEyNjUsImp0aSI6ImE3MTdmZDM5NjgwZjRkY2NiZTcxYmMzYjhmMGM5NDMzIiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vDTYii32A3kIPpXcY3cyr577DiNkozmA_A6j94HHkG0')
+  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNDAzNzkzLCJpYXQiOjE3NTI1Mzk3OTMsImp0aSI6IjIwYWIzY2M5ZDlkNDQ2ZmU5NzRhOGQ2YzM0ODI0MzM4IiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.sJZtM-8HwLq5bXY9V5Hm-aOuuM-WImbdMeG0QhIufu4')
+
+  const handleUserDisconnect = (data) => {
+    console.log("handleUserDisconnect")
+  }
+
+  const handleUserConnect = (data) => {
+    console.log("connected user ", data)
+  }
+
+  const handleNewUserConnect = (data) => {
+    setRemoteUsers(prevRemote => {
+        const existingUser = prevRemote.find(users => users.id_user === data.obj_user.id_user);
+        if (!existingUser) {
+            console.log("Add new socket user remote");
+            const update = [...prevRemote, data.obj_user];
+            console.log("handleNewUserConnect: ", update)
+            return update
+        }
+        return prevRemote;
+      });
+  }
+
+  const socketHandlers = {
+    "user_connect": handleUserConnect,
+    "user_disconnect": handleUserDisconnect,
+    "new_user_connect": handleNewUserConnect,
+  };
 
 
   const handleSocketMessage = (data) => {
     console.log("🔸 Mensaje desde backend:", data);
+    if (!data?.type) {
+      console.warn("⚠️ Messaje receive without type valid:", data);
+      return;
+    }
+
+
+    const handler = socketHandlers[data.type];
+    if (handler) {
+      handler(data);
+    } else {
+      console.warn("❓ Type no handle:", data.type);
+    }
   };
 
 
+
+
   const { connectSocket, sendMessage, closeSocket, isSocketConnect } = useMeetSocket({
-    meetId: meetId.current,
-    token: token.current,
+    //meetId: meetId.current,
+    //token: token.current,
+    meetId: meetIdUser,
+    token: tokenUser,
     onMessage: handleSocketMessage,
-    onOpen: () => console.log("🔗 Socket Django listo"),
+    onOpen: () => {
+      console.log("🔗 Socket Django listo")
+      setSocketReady(true);
+    },
   });
 
+  // initial logic
+  //useEffect (() => {
+  //  connectSocket();
+  //  return () => closeSocket();
+  //}, [meetIdUser, tokenUser]);
 
-  useEffect (() => {
-    connectSocket();
-    return () => closeSocket();
-  }, []);
+
+
+
 
   useEffect(() => {
-    Janus.init({ debug: "all", callback: () => setJanusInitialized(true) });
-  }, []);
+    if (socketReady && !janusInitialized) {
+      Janus.init({ debug: "all", callback: () => setJanusInitialized(true) });
+    }
+  }, [socketReady]);
 
   useEffect(() => {
     if (!janusInitialized) return;
@@ -284,9 +348,57 @@ const JanusTest = () => {
     currentRemoteSubstreamRef.current = currentSubstream;
   }, [currentSubstream]);
 
+  const enterCredendials = () => {
+    const meetVal = document.getElementById('meetIdUser').value;
+    const tokenVal = document.getElementById('tokenUser').value;
+
+    setMeetIdUser(meetVal);
+    setTokenUser(tokenVal);
+
+    // Muy importante: Conecta solo cuando tengas datos válidos
+    if (meetVal && tokenVal) {
+      connectSocket();
+    } else {
+      alert("Faltan datos para conectar.");
+    }
+  }
+
+  const credentialsUser = (user) => {
+    let meetVal = "";
+    let tokenUseraux = "";
+    setMeetIdUser(meetId.current);
+    meetVal = meetId.current;
+    if (user === "one") {
+      console.log(user)
+      tokenUseraux = tokenUserOne.current
+      setTokenUser(tokenUserOne.current)
+    }
+    if (user === "two") {
+      console.log(user)
+      tokenUseraux = tokenUserTwo.current
+      setTokenUser(tokenUserTwo.current)
+    }
+  
+
+    if (meetVal && tokenUseraux) {
+      connectSocket();
+    } else {
+      alert("Faltan datos para conectar.");
+    }
+  }
 
   return (
     <div>
+      <h1>Credential test</h1>
+      <label htmlFor="">meetIdUser</label>
+      <input type="text" id="meetIdUser"/>
+      <br/>
+      <label htmlFor="">tokenUser</label>
+      <input type="text" id="tokenUser"/>
+      <br/>
+      <button onClick={enterCredendials}>Enter credentials</button>
+      <button onClick={ () => credentialsUser("one")}>Enter user 1</button>
+      <button onClick={ () => credentialsUser("two")}>Enter user 2</button>
       <h2>🎥 Janus VideoRoom React</h2>
       <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "480px", border: "2px solid green" }} />
       <div>

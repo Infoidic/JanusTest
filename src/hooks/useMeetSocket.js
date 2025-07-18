@@ -7,7 +7,6 @@ export const useMeetSocket = ({ meetId, token, onMessage, onOpen }) => {
   const connectSocket = () => {
     if (!meetId || !token || wsRef.current?.readyState === WebSocket.OPEN)  return;
 
-    console.log("xue")
     const ws = new WebSocket(`wss://mtbk.estoesunaprueba.fun:8050/ws/meetrtc/${meetId}/?token=${token}`);
     wsRef.current = ws;
 
