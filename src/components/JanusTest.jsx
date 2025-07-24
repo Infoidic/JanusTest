@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
 import {useMeetSocket} from "../hooks/useMeetSocket";
+import VideoRemote from "./remoteVideo";
 window.adapter = adapter;
 
 const JanusTest = () => {
@@ -23,27 +24,57 @@ const JanusTest = () => {
 
 
   const [remoteUsers, setRemoteUsers] = useState([])
-
+  const [currentUser, setCurrentUser] = useState({})
 
   // provisional
-  const meetId = useRef('03d0f0fa-1f24-435d-9190-9727f242c217')
-  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzMzA1MjY1LCJpYXQiOjE3NTI0NDEyNjUsImp0aSI6ImE3MTdmZDM5NjgwZjRkY2NiZTcxYmMzYjhmMGM5NDMzIiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vDTYii32A3kIPpXcY3cyr577DiNkozmA_A6j94HHkG0')
-  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNDAzNzkzLCJpYXQiOjE3NTI1Mzk3OTMsImp0aSI6IjIwYWIzY2M5ZDlkNDQ2ZmU5NzRhOGQ2YzM0ODI0MzM4IiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.sJZtM-8HwLq5bXY9V5Hm-aOuuM-WImbdMeG0QhIufu4')
+  const meetId = useRef('33123b53-3bfb-4c19-8559-90e89f467b2e')
+  //rafaelromariorv@gmail.com
+  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0MTcwMzMzLCJpYXQiOjE3NTMzMDYzMzMsImp0aSI6IjgwNDJjYmI5MmUxZDRlODliZGZlZmUzZjE1OTIwODkwIiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.7EVdPl8zYl47zlJCdSunnNaBOmpmQdD4T3H5zYEgV_I')
+  //Fabian
+  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0MTcwNDA0LCJpYXQiOjE3NTMzMDY0MDQsImp0aSI6ImVmMTIyZTYxMWQ3NDRiYWFhYzA3MGEyNGIzMmYyNDQ0IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vKR6WePEC_J7sXDqCnwY0Q2Vr0xGCAMcS5-EL_8oL54')
+
+
+
+  const handleUserConnect = (data) => {
+    if (data && data.data) {
+      console.log("connected user ", data.data);
+      setCurrentUser(data.data);
+      sendMessage({"type":"users"})
+    } else {
+      console.warn("Invalid user data received", data);
+    }
+  }
+
 
   const handleUserDisconnect = (data) => {
     console.log("handleUserDisconnect")
+    setRemoteUsers(prevRemote => {
+      const update = prevRemote.filter(user => user.id_user !== data.data.id_user);
+      console.log("handleUserDisconnect:", update);
+      return update;
+    });
   }
 
-  const handleUserConnect = (data) => {
-    console.log("connected user ", data)
-  }
+
+  const addIdJanusToSocket = (id_janus) => {
+    setCurrentUser(prev => ({
+      ...prev,
+      id_janus: id_janus 
+    }));
+    sendMessage({
+      "type": "add_id_janus",
+      "id_janus": id_janus
+    })
+  };
+
+
 
   const handleNewUserConnect = (data) => {
     setRemoteUsers(prevRemote => {
-        const existingUser = prevRemote.find(users => users.id_user === data.obj_user.id_user);
+        const existingUser = prevRemote.find(user => user.id_user === data.data.id_user);
         if (!existingUser) {
             console.log("Add new socket user remote");
-            const update = [...prevRemote, data.obj_user];
+            const update = [...prevRemote, data.data];
             console.log("handleNewUserConnect: ", update)
             return update
         }
@@ -51,10 +82,32 @@ const JanusTest = () => {
       });
   }
 
+
+
+
+  const handleChangeStatus = (data) => {
+    const updatedUser = data.data;
+
+    setRemoteUsers(prevUsers =>
+      prevUsers.map(user =>
+        user.id_user === updatedUser.id_user ? { ...user, ...updatedUser } : user
+      )
+    );
+  };
+
+
+  const handleAddPreviousUsers = (data) => {
+    setRemoteUsers(data.data)
+  }
+
+
   const socketHandlers = {
     "user_connect": handleUserConnect,
     "user_disconnect": handleUserDisconnect,
     "new_user_connect": handleNewUserConnect,
+    "add_id_janus": handleChangeStatus,
+    "change_status": handleChangeStatus,
+    "users": handleAddPreviousUsers,
   };
 
 
@@ -65,7 +118,6 @@ const JanusTest = () => {
       return;
     }
 
-
     const handler = socketHandlers[data.type];
     if (handler) {
       handler(data);
@@ -74,6 +126,37 @@ const JanusTest = () => {
     }
   };
 
+
+
+
+  const disconnectAll = () => {
+    console.log("🔌 Desconectando usuario...");
+
+    // Cerrar el socket
+    closeSocket();
+
+    // Cerrar Janus si está conectado
+    if (pluginHandleRef.current) {
+      pluginHandleRef.current.send({ message: { request: "unpublish" } });
+      pluginHandleRef.current.hangup();
+      pluginHandleRef.current.detach();
+      pluginHandleRef.current = null;
+    }
+
+    if (janusRef.current) {
+      janusRef.current.destroy();
+      janusRef.current = null;
+    }
+
+    // Limpieza de estado local
+    setRemoteFeeds([]);
+    setRemoteUsers([]);
+    setCurrentUser({});
+    setJanusInitialized(false);
+    setSocketReady(false);
+    setMeetIdUser('');
+    setTokenUser('');
+  };
 
 
 
@@ -87,14 +170,12 @@ const JanusTest = () => {
       console.log("🔗 Socket Django listo")
       setSocketReady(true);
     },
+    onClose: () => {
+      console.log("Socket cerrado, cerrando Janus ...");
+    },
+    localVideoRef,
+    
   });
-
-  // initial logic
-  //useEffect (() => {
-  //  connectSocket();
-  //  return () => closeSocket();
-  //}, [meetIdUser, tokenUser]);
-
 
 
 
@@ -128,7 +209,9 @@ const JanusTest = () => {
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
         pluginHandleRef.current = pluginHandle;
-        const roomId = "1233";  // <-- aquí tu uuid dinámico desde props, state, url, etc.
+        console.log("xue: ", pluginHandle.id)
+        
+        const roomId = meetIdUser;  // <-- aquí tu uuid dinámico desde props, state, url, etc.
 
         // 1️⃣ Consultar si la sala existe
         pluginHandle.send({
@@ -168,10 +251,14 @@ const JanusTest = () => {
       onmessage: (msg, jsep) => {
         if (msg.videoroom === "joined") {
           startCamera();
-          if (msg.publishers)
+          // Este es id del actual
+          addIdJanusToSocket(msg.id)
+          if (msg.publishers){
             msg.publishers.forEach((p) => newRemoteFeed(p.id));
+          }
         }
         if (msg.videoroom === "event") {
+          console.log("xue desp: ", msg)
           if (msg.publishers)
             msg.publishers.forEach((p) => newRemoteFeed(p.id));
           if (msg.unpublished || msg.leaving) {
@@ -291,7 +378,7 @@ const JanusTest = () => {
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
         pluginHandle.send({
-          message: { request: "join", room: "1233", ptype: "subscriber", feed: publisherId },
+          message: { request: "join", room: meetIdUser, ptype: "subscriber", feed: publisherId },
         });
 
         pluginHandle.onremotetrack = (track, mid, on) => {
@@ -327,6 +414,12 @@ const JanusTest = () => {
     });
   };
 
+
+  
+
+
+
+
   const switchQuality = (substream) => {
     setCurrentSubstream(substream);
     remoteFeeds.forEach((f) => {
@@ -334,9 +427,46 @@ const JanusTest = () => {
     });
   };
 
-  const configurePublisher = (audio, video) => {
-    pluginHandleRef.current.send({ message: { request: "configure", audio, video } });
+  const configurePublisherVideo = (video) => {
+    pluginHandleRef.current.send({ message: { request: "configure", video } });
+    sendMessage({"type": "change_status", "action":"status_video", "new_status": video})
+  //pluginHandleRef.current.send({ message: { request: "configure", audio, video } });
   };
+
+
+  const configurePublisherVideoDinamic = () => {
+    const newStatus = !currentUser.status_video;
+
+    setCurrentUser(prev => ({
+      ...prev,
+      status_video: newStatus
+    }));
+
+    pluginHandleRef.current.send({ message: { request: "configure", video:newStatus } });
+    sendMessage({"type": "change_status", "action":"status_video", "new_status": newStatus})
+  };
+
+
+
+  const configurePublisherAudioDinamic = () => {
+    const newStatus = !currentUser.status_microphone;
+
+    setCurrentUser(prev => ({
+      ...prev,
+      status_microphone: newStatus
+    }));
+
+    pluginHandleRef.current.send({ message: { request: "configure", audio:newStatus } });
+    sendMessage({"type": "change_status", "action":"status_microphone", "new_status": newStatus})
+  };
+
+
+  const configurePublisherAudio = (audio) => {
+    pluginHandleRef.current.send({ message: { request: "configure", audio } });
+    sendMessage({"type": "change_status", "action":"status_microphone", "new_status": audio})
+    
+  };
+
 
   useEffect(() => {
     remoteFeeds.forEach((f) => {
@@ -399,13 +529,27 @@ const JanusTest = () => {
       <button onClick={enterCredendials}>Enter credentials</button>
       <button onClick={ () => credentialsUser("one")}>Enter user 1</button>
       <button onClick={ () => credentialsUser("two")}>Enter user 2</button>
+      <br/>
+      <button onClick={disconnectAll}>❌ Desconectar</button>
       <h2>🎥 Janus VideoRoom React</h2>
       <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "480px", border: "2px solid green" }} />
       <div>
-        <button onClick={() => configurePublisher(false, true)}>Mute Mic</button>
-        <button onClick={() => configurePublisher(true, true)}>Unmute Mic</button>
-        <button onClick={() => configurePublisher(true, false)}>Apagar Cámara</button>
-        <button onClick={() => configurePublisher(true, true)}>Encender Cámara</button>
+        <button 
+          onClick={() => configurePublisherAudioDinamic()}
+          disabled={!currentUser.microphone}
+        >
+          {currentUser.status_microphone ? "🔇 Mutear Mic" : "🎤 Activar Mic"}
+        </button>
+        <button 
+          onClick={() => configurePublisherVideoDinamic()}
+          disabled={!currentUser.video}
+        >
+          {currentUser.status_video ? "🚫📷 Desactivar cámara" : "📷 Activar cámara"}
+        </button>
+        <button onClick={() => configurePublisherAudio(false)}>Mute Mic</button>
+        <button onClick={() => configurePublisherAudio(true)}>Unmute Mic</button>
+        <button onClick={() => configurePublisherVideo(false)}>Apagar Cámara</button>
+        <button onClick={() => configurePublisherVideo(true)}>Encender Cámara</button>
         <button onClick={shareScreen}>📺 Compartir Pantalla</button>
       </div>
       <h3>👥 Participantes Remotos</h3>
@@ -416,12 +560,13 @@ const JanusTest = () => {
           <option value="1">Baja</option>
           <option value="2">Alta</option>
         </select>
+
       </div>
-      {remoteFeeds.map((f) => (
-        <div key={f.feedId}>
-          <video ref={f.ref} autoPlay playsInline style={{ width: "320px", border: "2px solid blue", margin: "5px" }} />
-        </div>
-      ))}
+
+      <VideoRemote feeds={remoteFeeds} remoteusers={remoteUsers} ></VideoRemote>
+
+
+
     </div>
   );
 };

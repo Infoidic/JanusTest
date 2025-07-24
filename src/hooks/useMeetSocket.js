@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export const useMeetSocket = ({ meetId, token, onMessage, onOpen }) => {
+export const useMeetSocket = ({ meetId, token, onMessage, onOpen, onClose, localVideoRef }) => {
   const wsRef = useRef(null);
   const [isSocketConnect, setIsSocketConnect] = useState(false);
 
@@ -28,6 +28,11 @@ export const useMeetSocket = ({ meetId, token, onMessage, onOpen }) => {
 
     ws.onclose = () => {
       console.log("🛑 WebSocket cerrado");
+      setIsSocketConnect(false)
+      if (localVideoRef?.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      onClose?.();
     };
 
   };
