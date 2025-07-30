@@ -1,8 +1,7 @@
 import React, {useEffect} from "react";
 
-const VideoRemote = ({ feeds, remoteusers }) => {
+const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
   // Función auxiliar para encontrar al usuario por ID Janus
-  console.log("xue *-*-*")
 
   console.log("🟦 feeds initial:", feeds);
   console.log("🟧 remoteusers initial:", remoteusers);
@@ -25,12 +24,12 @@ const VideoRemote = ({ feeds, remoteusers }) => {
     <>
       {feeds.map((f) => {
         const user = getUserByJanusId(f.feedId);
-        console.log("user xue: ", user)
-        const micOn = user?.status_microphone;
-        const micLock = user?.microphone;
+        const channelName = user?.channel_name;
+        const statusMicrophone = user?.status_microphone;
+        const microphone = user?.microphone;
         const userName = user?.name || "Desconocido";
-        const cameraStatus = user?.status_video;
-        const cameraLock = user?.video;
+        const statusVideo = user?.status_video;
+        const video = user?.video;
 
         return (
           <div
@@ -58,12 +57,12 @@ const VideoRemote = ({ feeds, remoteusers }) => {
               <div><strong>Name: {userName}</strong></div>
               <div>ID: {f.feedId}</div>
               <div>
-                {micOn ? "🎤 Mic encendido" : "🔇 Mic apagado"} / 
-                {micLock ? "🔒 Mic unlocked" : "🔓 Mic locked"}
+                {statusMicrophone ? "🎤 Mic encendido" : "🔇 Mic apagado"} / 
+                {microphone ? "🔒 Mic unlocked" : "🔓 Mic locked"}
               </div>
               <div>
-                {cameraStatus ? "🚫📷 Desactivar cámara" : "📷 Activar cámara"} / 
-                {cameraLock ? "🔒 Cam unlocked" : "🔓 Cam locked"}
+                {statusVideo ? "🚫📷 Desactivar cámara" : "📷 Activar cámara"} / 
+                {video ? "🔒 Cam unlocked" : "🔓 Cam locked"}
               </div>
             </div>
 
@@ -77,6 +76,56 @@ const VideoRemote = ({ feeds, remoteusers }) => {
                 border: "2px solid blue",
               }}
             />
+
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                width: "100%",
+                backgroundColor: "rgba(0, 0, 0, 0.6)",
+                color: "white",
+                padding: "10px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottomLeftRadius: "8px",
+                borderBottomRightRadius: "8px",
+              }}
+              >
+              <span>🔧 Acción</span>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button 
+                  onClick={() => 
+                    onRemoteAction({
+                      type:"change_status_user_meet",
+                      action: "microphone",
+                      new_status:!microphone,
+                      channel_name: channelName
+                    })
+                  }
+                >
+                  {statusMicrophone ? "🎤" : "🔇"} / 
+                  {microphone ? "🔒 unlocked" : "🔓locked"}
+                </button>
+                <button 
+                  onClick={() => 
+                    onRemoteAction({
+                      type:"change_status_user_meet",
+                      action: "video",
+                      new_status:!video,
+                      channel_name: channelName
+                    })
+                  }
+                >
+                  {statusVideo ? "📷" : "📷🚫"} / 
+                  {video ? "🔒 unlocked" : "🔓locked"}
+                </button>
+                <button >📷</button>
+                <button >🖥️</button>
+              </div>
+            </div>
+
+
           </div>
         );
       })}

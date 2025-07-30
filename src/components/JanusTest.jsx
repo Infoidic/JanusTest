@@ -25,7 +25,7 @@ const JanusTest = () => {
 
   const [remoteUsers, setRemoteUsers] = useState([])
   const [currentUser, setCurrentUser] = useState({})
-
+  const currentUserRef = useRef(currentUser)
   // provisional
   const meetId = useRef('33123b53-3bfb-4c19-8559-90e89f467b2e')
   //rafaelromariorv@gmail.com
@@ -86,13 +86,21 @@ const JanusTest = () => {
 
 
   const handleChangeStatus = (data) => {
-    const updatedUser = data.data;
+    if (data.status === "success"){
+      const updatedUser = data.data;
+      if (currentUserRef.current.id_user == updatedUser.id_user){
+        setCurrentUser(data.data)
+      } else {
+        setRemoteUsers(prevUsers =>
+          prevUsers.map(user =>
+            user.id_user === updatedUser.id_user ? { ...user, ...updatedUser } : user
+          )
+        );
+      }
 
-    setRemoteUsers(prevUsers =>
-      prevUsers.map(user =>
-        user.id_user === updatedUser.id_user ? { ...user, ...updatedUser } : user
-      )
-    );
+
+    } // el error que?
+
   };
 
 
@@ -101,6 +109,25 @@ const JanusTest = () => {
   }
 
 
+  const handleChangeStatusUserMeet = (data) => {
+    if (data.status === "success"){
+      if (currentUserRef.current.id_user == data.data.id_user){
+        setCurrentUser(data.data)
+        console.log("xue1 " + JSON.stringify(data.data))
+        if (data.action === "microphone") {
+          console.log("xue1 jaja")
+          configurePublisherAudioRemote(data.data.status_microphone)
+        }
+      }
+      else {
+        handleChangeStatus(data);
+      }
+    }
+    if (data.status === "error") {
+      alert("Error: " + data.message)
+    }
+  }
+
   const socketHandlers = {
     "user_connect": handleUserConnect,
     "user_disconnect": handleUserDisconnect,
@@ -108,6 +135,7 @@ const JanusTest = () => {
     "add_id_janus": handleChangeStatus,
     "change_status": handleChangeStatus,
     "users": handleAddPreviousUsers,
+    "change_status_user_meet": handleChangeStatusUserMeet,
   };
 
 
@@ -427,21 +455,9 @@ const JanusTest = () => {
     });
   };
 
-  const configurePublisherVideo = (video) => {
-    pluginHandleRef.current.send({ message: { request: "configure", video } });
-    sendMessage({"type": "change_status", "action":"status_video", "new_status": video})
-  //pluginHandleRef.current.send({ message: { request: "configure", audio, video } });
-  };
-
 
   const configurePublisherVideoDinamic = () => {
     const newStatus = !currentUser.status_video;
-
-    setCurrentUser(prev => ({
-      ...prev,
-      status_video: newStatus
-    }));
-
     pluginHandleRef.current.send({ message: { request: "configure", video:newStatus } });
     sendMessage({"type": "change_status", "action":"status_video", "new_status": newStatus})
   };
@@ -450,23 +466,14 @@ const JanusTest = () => {
 
   const configurePublisherAudioDinamic = () => {
     const newStatus = !currentUser.status_microphone;
-
-    setCurrentUser(prev => ({
-      ...prev,
-      status_microphone: newStatus
-    }));
-
     pluginHandleRef.current.send({ message: { request: "configure", audio:newStatus } });
     sendMessage({"type": "change_status", "action":"status_microphone", "new_status": newStatus})
   };
 
-
-  const configurePublisherAudio = (audio) => {
-    pluginHandleRef.current.send({ message: { request: "configure", audio } });
-    sendMessage({"type": "change_status", "action":"status_microphone", "new_status": audio})
-    
+  const configurePublisherAudioRemote = (state) => {
+    console.log("xue1: ba " + state)
+    pluginHandleRef.current.send({ message: { request: "configure", audio:state } });
   };
-
 
   useEffect(() => {
     remoteFeeds.forEach((f) => {
@@ -477,6 +484,13 @@ const JanusTest = () => {
   useEffect(() => {
     currentRemoteSubstreamRef.current = currentSubstream;
   }, [currentSubstream]);
+
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+
 
   const enterCredendials = () => {
     const meetVal = document.getElementById('meetIdUser').value;
@@ -538,18 +552,14 @@ const JanusTest = () => {
           onClick={() => configurePublisherAudioDinamic()}
           disabled={!currentUser.microphone}
         >
-          {currentUser.status_microphone ? "🔇 Mutear Mic" : "🎤 Activar Mic"}
+          {currentUser.status_microphone ? "🎤 " : "🔇"}
         </button>
         <button 
           onClick={() => configurePublisherVideoDinamic()}
           disabled={!currentUser.video}
         >
-          {currentUser.status_video ? "🚫📷 Desactivar cámara" : "📷 Activar cámara"}
+          {currentUser.status_video ? "📷" : "📷🚫"}
         </button>
-        <button onClick={() => configurePublisherAudio(false)}>Mute Mic</button>
-        <button onClick={() => configurePublisherAudio(true)}>Unmute Mic</button>
-        <button onClick={() => configurePublisherVideo(false)}>Apagar Cámara</button>
-        <button onClick={() => configurePublisherVideo(true)}>Encender Cámara</button>
         <button onClick={shareScreen}>📺 Compartir Pantalla</button>
       </div>
       <h3>👥 Participantes Remotos</h3>
@@ -563,7 +573,19 @@ const JanusTest = () => {
 
       </div>
 
-      <VideoRemote feeds={remoteFeeds} remoteusers={remoteUsers} ></VideoRemote>
+      <VideoRemote 
+        feeds={remoteFeeds} 
+        remoteusers={remoteUsers} 
+        onRemoteAction={({type, action, new_status, channel_name}) => {
+          sendMessage({
+            type,
+            action,
+            new_status,
+            channel_name
+          });
+        }}
+      >
+      </VideoRemote>
 
 
 
