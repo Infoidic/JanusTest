@@ -30,6 +30,8 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
         const userName = user?.name || "Desconocido";
         const statusVideo = user?.status_video;
         const video = user?.video;
+        const statusScree = user?.status_screen;
+        const screen = user?.screen;
 
         return (
           <div
@@ -56,14 +58,6 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
             >
               <div><strong>Name: {userName}</strong></div>
               <div>ID: {f.feedId}</div>
-              <div>
-                {statusMicrophone ? "🎤 Mic encendido" : "🔇 Mic apagado"} / 
-                {microphone ? "🔒 Mic unlocked" : "🔓 Mic locked"}
-              </div>
-              <div>
-                {statusVideo ? "🚫📷 Desactivar cámara" : "📷 Activar cámara"} / 
-                {video ? "🔒 Cam unlocked" : "🔓 Cam locked"}
-              </div>
             </div>
 
             {/* Video remoto */}
@@ -92,7 +86,6 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                 borderBottomRightRadius: "8px",
               }}
               >
-              <span>🔧 Acción</span>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button 
                   onClick={() => 
@@ -105,7 +98,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                   }
                 >
                   {statusMicrophone ? "🎤" : "🔇"} / 
-                  {microphone ? "🔒 unlocked" : "🔓locked"}
+                  {microphone ? "🔒🟢" : "🔓🚫"}
                 </button>
                 <button 
                   onClick={() => 
@@ -118,14 +111,23 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                   }
                 >
                   {statusVideo ? "📷" : "📷🚫"} / 
-                  {video ? "🔒 unlocked" : "🔓locked"}
+                  {video ? "🔒🟢" : "🔓🚫"}
                 </button>
-                <button >📷</button>
-                <button >🖥️</button>
+                <button
+                  onClick={() => 
+                    onRemoteAction({
+                      type:"change_status_user_meet",
+                      action: "screen",
+                      new_status:!screen,
+                      channel_name: channelName
+                    })
+                  }
+                >
+                  {statusScree ? "🖥️" : "🖥️🚫"} / 
+                  {screen ? "🔒🟢" : "🔓🚫"}
+                </button>
               </div>
             </div>
-
-
           </div>
         );
       })}

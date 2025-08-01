@@ -33,7 +33,8 @@ const JanusTest = () => {
   //Fabian
   const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0MTcwNDA0LCJpYXQiOjE3NTMzMDY0MDQsImp0aSI6ImVmMTIyZTYxMWQ3NDRiYWFhYzA3MGEyNGIzMmYyNDQ0IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vKR6WePEC_J7sXDqCnwY0Q2Vr0xGCAMcS5-EL_8oL54')
 
-
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const screenTrackRef = useRef(null);
 
   const handleUserConnect = (data) => {
     if (data && data.data) {
@@ -75,7 +76,8 @@ const JanusTest = () => {
         if (!existingUser) {
             console.log("Add new socket user remote");
             const update = [...prevRemote, data.data];
-            console.log("handleNewUserConnect: ", update)
+            console.log("handleNewUserConnect: ", JSON.stringify(update))
+            console.log("xue new user: " + JSON.stringify(update))
             return update
         }
         return prevRemote;
@@ -91,6 +93,7 @@ const JanusTest = () => {
       if (currentUserRef.current.id_user == updatedUser.id_user){
         setCurrentUser(data.data)
       } else {
+        console.log("xue remote update: " + JSON.stringify(data))
         setRemoteUsers(prevUsers =>
           prevUsers.map(user =>
             user.id_user === updatedUser.id_user ? { ...user, ...updatedUser } : user
@@ -105,7 +108,12 @@ const JanusTest = () => {
 
 
   const handleAddPreviousUsers = (data) => {
-    setRemoteUsers(data.data)
+    const filteredUsers = data.data.filter(
+      (user) => user.id_user !== currentUserRef.current.id_user
+    );
+
+    setRemoteUsers(filteredUsers);
+
   }
 
 
@@ -117,6 +125,10 @@ const JanusTest = () => {
         if (data.action === "microphone") {
           console.log("xue1 jaja")
           configurePublisherAudioRemote(data.data.status_microphone)
+        }
+        if (data.action === "video"){
+          console.log("xue1 jaja: " + data.data.status_video)
+          configurePublisherVideoRemote(data.data.status_video)
         }
       }
       else {
@@ -278,8 +290,10 @@ const JanusTest = () => {
       },
       onmessage: (msg, jsep) => {
         if (msg.videoroom === "joined") {
-          startCamera();
+           startCamera();
           // Este es id del actual
+          //alert("conectado")
+
           addIdJanusToSocket(msg.id)
           if (msg.publishers){
             msg.publishers.forEach((p) => newRemoteFeed(p.id));
@@ -363,6 +377,20 @@ const JanusTest = () => {
           console.log("✅ Simulcast encodings seteados correctamente en RTCRtpSender");
         } // Aquí aplicamos sendEncodings a nivel RTCRtpSender
 
+        setTimeout(() => {
+          pluginHandleRef.current.send({
+            message: { request: "configure", audio: currentUser.status_microphone }
+          }); // pasa algo cuando uso en vez de audio video
+        }, 500);
+
+
+        //setTimeout(() => {
+        //  pluginHandleRef.current.send({
+        //    message: { request: "configure", video: currentUser.status_video }
+        //  }); // pasa algo cuando uso en vez de audio video
+        //}, 500);
+
+
         pluginHandleRef.current.send({
           message: { request: "configure", audio: true, video: true },
           jsep,
@@ -372,32 +400,48 @@ const JanusTest = () => {
   };
 
 
+
   const shareScreen = async () => {
     if (isMobile) return alert("Compartir pantalla no disponible en móviles.");
     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
     const screenTrack = screenStream.getVideoTracks()[0];
-    
-    // Crear un stream local solo con ese track para visualizarlo localmente
+    screenTrackRef.current = screenTrack;
+    //setIsScreenSharing(true); // <-- ahora estamos compartiendo
+
     const displayStream = new MediaStream([screenTrack]);
     localVideoRef.current.srcObject = displayStream;
 
-    // Reemplazar en la conexión a Janus
     const sender = pluginHandleRef.current.webrtcStuff.pc.getSenders().find(
       (s) => s.track && s.track.kind === "video"
     );
     if (sender) await sender.replaceTrack(screenTrack);
-
+    configureShareScreen()
+    // Escuchar cuando el usuario presiona "Stop sharing" desde navegador
     screenTrack.onended = () => {
+      configureShareScreen();
+      stopScreenSharing();
+    };
+  };
+
+
+  const stopScreenSharing = async () => {
+    if (!screenTrackRef.current) return;
+
+    screenTrackRef.current.stop(); // Detener el track
+    //setIsScreenSharing(false);
+
+    // Esperar a que track de pantalla finalice
     pluginHandleRef.current.send({ message: { request: "unpublish" } });
     pluginHandleRef.current.hangup();
     pluginHandleRef.current.detach();
-    
-    setTimeout(() => {
-      attachPlugin(); // ← volver a conectar un nuevo plugin publisher
-    }, 500);
 
-    };
+    // Esperar un momento y luego re-atachar el plugin y volver a publicar cámara
+    setTimeout(() => {
+      attachPlugin();
+      configureShareScreen()
+    }, 500);
   };
+
 
 
   const newRemoteFeed = (publisherId) => {
@@ -456,12 +500,16 @@ const JanusTest = () => {
   };
 
 
+  const configureShareScreen = () => {
+    const newStatus = !currentUser.status_screen;
+    sendMessage({"type": "change_status", "action":"status_screen", "new_status": newStatus})
+  }
+
   const configurePublisherVideoDinamic = () => {
     const newStatus = !currentUser.status_video;
     pluginHandleRef.current.send({ message: { request: "configure", video:newStatus } });
     sendMessage({"type": "change_status", "action":"status_video", "new_status": newStatus})
   };
-
 
 
   const configurePublisherAudioDinamic = () => {
@@ -471,9 +519,14 @@ const JanusTest = () => {
   };
 
   const configurePublisherAudioRemote = (state) => {
-    console.log("xue1: ba " + state)
     pluginHandleRef.current.send({ message: { request: "configure", audio:state } });
   };
+
+
+  const configurePublisherVideoRemote = (state) => {
+    pluginHandleRef.current.send({ message: { request: "configure", video:state } });
+  };
+
 
   useEffect(() => {
     remoteFeeds.forEach((f) => {
@@ -490,6 +543,14 @@ const JanusTest = () => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
 
+  useEffect(() => {
+    if (currentUser){
+      if (currentUser.screen === false) {
+        stopScreenSharing();
+        //send message update microphone
+      }
+    }
+  }, [currentUser?.screen])
 
 
   const enterCredendials = () => {
@@ -560,7 +621,12 @@ const JanusTest = () => {
         >
           {currentUser.status_video ? "📷" : "📷🚫"}
         </button>
-        <button onClick={shareScreen}>📺 Compartir Pantalla</button>
+        <button 
+          onClick={ currentUser.status_screen ? stopScreenSharing : shareScreen }
+          disabled={!currentUser.screen}
+        >
+          {currentUser.status_screen ? "❌ Dejar de Compartir" : "📺 Compartir Pantalla"}
+        </button>
       </div>
       <h3>👥 Participantes Remotos</h3>
       <div>
