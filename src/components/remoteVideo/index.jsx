@@ -32,7 +32,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
         const video = user?.video;
         const statusScree = user?.status_screen;
         const screen = user?.screen;
-
+        console.log("xue f : ", f)
         return (
           <div
             key={f.feedId}
@@ -58,6 +58,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
             >
               <div><strong>Name: {userName}</strong></div>
               <div>ID: {f.feedId}</div>
+              
             </div>
 
             {/* Video remoto */}

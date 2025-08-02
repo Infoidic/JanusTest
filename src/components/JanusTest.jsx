@@ -8,6 +8,8 @@ window.adapter = adapter;
 const JanusTest = () => {
   const janusRef = useRef(null);
   const pluginHandleRef = useRef(null);
+  const screenSharePluginRef = useRef(null);
+  const screenVideoRef = useRef(null);
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const [janusInitialized, setJanusInitialized] = useState(false);
@@ -35,6 +37,7 @@ const JanusTest = () => {
 
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const screenTrackRef = useRef(null);
+  const audioTrackRef = useRef(null);
 
   const handleUserConnect = (data) => {
     if (data && data.data) {
@@ -92,6 +95,7 @@ const JanusTest = () => {
       const updatedUser = data.data;
       if (currentUserRef.current.id_user == updatedUser.id_user){
         setCurrentUser(data.data)
+
       } else {
         console.log("xue remote update: " + JSON.stringify(data))
         setRemoteUsers(prevUsers =>
@@ -212,6 +216,7 @@ const JanusTest = () => {
     },
     onClose: () => {
       console.log("Socket cerrado, cerrando Janus ...");
+      disconnectAll();
     },
     localVideoRef,
     
@@ -400,9 +405,114 @@ const JanusTest = () => {
   };
 
 
-
   const shareScreen = async () => {
     if (isMobile) return alert("Compartir pantalla no disponible en móviles.");
+
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    const screenTrack = screenStream.getVideoTracks()[0];
+    screenTrackRef.current = screenTrack;
+    const audioTrack = screenStream.getAudioTracks()[0];
+    audioTrackRef.current = audioTrack;
+
+    janusRef.current.attach({
+      plugin: "janus.plugin.videoroom",
+      success: (pluginHandle) => {
+        screenSharePluginRef.current = pluginHandle;
+
+        screenSharePluginRef.current.send({
+          message: {
+            request: "join",
+            room: meetIdUser,
+            ptype: "publisher",
+            display: "screen-share",
+          },
+        });
+
+        screenSharePluginRef.current.onmessage = (msg, jsep) => {
+          if (msg.videoroom === "joined") {
+            addIdJanusToSocket(msg.id)
+            screenSharePluginRef.current.createOffer({
+              stream: screenStream,
+              tracks: [
+                { type: "video", capture: screenStream },
+                { type: "audio", capture: screenStream }
+              ],
+              success: (jsep) => {
+                screenSharePluginRef.current.send({
+                  message: {
+                    request: "configure",
+                    audio: true,
+                    video: true,
+                  },
+                  jsep,
+                });
+                setIsScreenSharing(true);
+                configureShareScreen();
+              },
+              error: (err) => console.error("❌ Error al crear oferta para pantalla:", err),
+            });
+          }
+
+          if (jsep) {
+            pluginHandle.handleRemoteJsep({ jsep });
+          }
+        };
+
+        screenTrack.onended = () => {
+          stopScreenSharing();
+        };
+      },
+      error: (err) => {
+        console.error("❌ Error al conectar plugin de pantalla:", err);
+      },
+      onlocaltrack: async (track, on) => {
+
+        const pc = screenSharePluginRef.current.webrtcStuff.pc;
+        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (videoSender && screenTrack) {
+          await videoSender.replaceTrack(screenTrack);
+          console.log("✅ Video reemplazado");
+        }
+
+        // Reemplazar audio (opcional)
+        const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+        if (audioSender && audioTrackRef) {
+          await audioSender.replaceTrack(audioTrack);
+          console.log("✅ Audio reemplazado");
+        } 
+
+
+
+      }
+    });
+  };
+
+
+
+  const stopScreenSharing = async () => {
+    if (!screenTrackRef.current) return;
+
+    screenTrackRef.current.stop(); // Detener el track
+    //setIsScreenSharing(false);
+
+    // Esperar a que track de pantalla finalice
+    screenSharePluginRef.current.send({ message: { request: "unpublish" } });
+    screenSharePluginRef.current.hangup();
+    screenSharePluginRef.current.detach();
+
+    // Esperar un momento y luego re-atachar el plugin y volver a publicar cámara
+    setTimeout(() => {
+      //attachPlugin();
+      configureShareScreen()
+    }, 500);
+  };
+
+
+
+
+  const shareScreenOld = async () => {
+    if (isMobile) return alert("Compartir pantalla no disponible en móviles.");
+
     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
     const screenTrack = screenStream.getVideoTracks()[0];
     screenTrackRef.current = screenTrack;
@@ -419,12 +529,12 @@ const JanusTest = () => {
     // Escuchar cuando el usuario presiona "Stop sharing" desde navegador
     screenTrack.onended = () => {
       configureShareScreen();
-      stopScreenSharing();
+      stopScreenSharingOld();
     };
   };
 
 
-  const stopScreenSharing = async () => {
+  const stopScreenSharingOld = async () => {
     if (!screenTrackRef.current) return;
 
     screenTrackRef.current.stop(); // Detener el track
@@ -608,6 +718,8 @@ const JanusTest = () => {
       <button onClick={disconnectAll}>❌ Desconectar</button>
       <h2>🎥 Janus VideoRoom React</h2>
       <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "480px", border: "2px solid green" }} />
+      <br/>
+      <video ref={screenVideoRef} autoPlay playsInline muted width="300" style={{ width: "480px", border: "2px solid blue" }} />
       <div>
         <button 
           onClick={() => configurePublisherAudioDinamic()}
