@@ -15,15 +15,25 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
 
 
   const getUserByJanusId = (feedId) => {
-    console.log("feeds " + feeds)
-    console.log("remoteusers " + remoteusers)
     return remoteusers.find((user) => user.id_janus === feedId);
   };
+
+
+
+  const getUserByJanusIdShareScreen = (feedId) => {
+    return remoteusers.find((user) => user.id_janus_share_screen=== feedId);
+  };
+
+
 
   return (
     <>
       {feeds.map((f) => {
-        const user = getUserByJanusId(f.feedId);
+        var user = getUserByJanusId(f.feedId);
+        if (user == undefined) {
+          //alert("entro")
+          user = getUserByJanusIdShareScreen(f.feedId)
+        }
         const channelName = user?.channel_name;
         const statusMicrophone = user?.status_microphone;
         const microphone = user?.microphone;
@@ -73,7 +83,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
             />
 
             <div
-              style={{
+              style={user ? {
                 position: "absolute",
                 bottom: 0,
                 width: "100%",
@@ -85,9 +95,11 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                 alignItems: "center",
                 borderBottomLeftRadius: "8px",
                 borderBottomRightRadius: "8px",
-              }}
+              }: undefined}
               >
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div 
+                style={user ? { display: "flex", gap: "8px" } : undefined}
+              >
                 <button 
                   onClick={() => 
                     onRemoteAction({
@@ -97,6 +109,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                       channel_name: channelName
                     })
                   }
+                  hidden={!user}
                 >
                   {statusMicrophone ? "🎤" : "🔇"} / 
                   {microphone ? "🔒🟢" : "🔓🚫"}
@@ -110,6 +123,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                       channel_name: channelName
                     })
                   }
+                  hidden={!user}
                 >
                   {statusVideo ? "📷" : "📷🚫"} / 
                   {video ? "🔒🟢" : "🔓🚫"}
@@ -123,6 +137,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                       channel_name: channelName
                     })
                   }
+                  hidden={!user}
                 >
                   {statusScree ? "🖥️" : "🖥️🚫"} / 
                   {screen ? "🔒🟢" : "🔓🚫"}

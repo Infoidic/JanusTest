@@ -31,9 +31,9 @@ const JanusTest = () => {
   // provisional
   const meetId = useRef('33123b53-3bfb-4c19-8559-90e89f467b2e')
   //rafaelromariorv@gmail.com
-  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0MTcwMzMzLCJpYXQiOjE3NTMzMDYzMzMsImp0aSI6IjgwNDJjYmI5MmUxZDRlODliZGZlZmUzZjE1OTIwODkwIiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.7EVdPl8zYl47zlJCdSunnNaBOmpmQdD4T3H5zYEgV_I')
+  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MTg2Njc2LCJpYXQiOjE3NTQzMjI2NzYsImp0aSI6IjY1YTcxZmEwMGQxYjQzNWM4YThmNTA4MjM0NzNiZWM3IiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.FR3Nf-H4n19PmKCvKQqbokiuRJ2K8HkFCGBdsik7BXc')
   //Fabian
-  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0MTcwNDA0LCJpYXQiOjE3NTMzMDY0MDQsImp0aSI6ImVmMTIyZTYxMWQ3NDRiYWFhYzA3MGEyNGIzMmYyNDQ0IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.vKR6WePEC_J7sXDqCnwY0Q2Vr0xGCAMcS5-EL_8oL54')
+  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MTg2NDM1LCJpYXQiOjE3NTQzMjI0MzUsImp0aSI6ImVjYmI4ZDI1ZjNiZjQyNTg5MTdjMDU2MWRiMjE3OWM3IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.DoKT7s6ZX3ri2B9NPZNrWLmIMx3sb2s0T2DjHcYQxug')
 
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const screenTrackRef = useRef(null);
@@ -61,13 +61,26 @@ const JanusTest = () => {
 
 
   const addIdJanusToSocket = (id_janus) => {
-    setCurrentUser(prev => ({
-      ...prev,
-      id_janus: id_janus 
-    }));
+    //setCurrentUser(prev => ({
+    //  ...prev,
+    //  id_janus: id_janus 
+    //}));
     sendMessage({
       "type": "add_id_janus",
       "id_janus": id_janus
+    })
+  };
+
+
+
+  const addIdJanusShareScreenToSocket = (id_janus) => {
+    //setCurrentUser(prev => ({
+    //  ...prev,
+    //  id_janus: id_janus 
+    //}));
+    sendMessage({
+      "type": "add_id_janus_share_screen",
+      "id_janus_share_screen": id_janus
     })
   };
 
@@ -149,6 +162,7 @@ const JanusTest = () => {
     "user_disconnect": handleUserDisconnect,
     "new_user_connect": handleNewUserConnect,
     "add_id_janus": handleChangeStatus,
+    "add_id_janus_share_screen": handleChangeStatus,
     "change_status": handleChangeStatus,
     "users": handleAddPreviousUsers,
     "change_status_user_meet": handleChangeStatusUserMeet,
@@ -301,13 +315,15 @@ const JanusTest = () => {
 
           addIdJanusToSocket(msg.id)
           if (msg.publishers){
-            msg.publishers.forEach((p) => newRemoteFeed(p.id));
+            msg.publishers.forEach((p) => newRemoteFeed(p.id, p.display));
           }
         }
         if (msg.videoroom === "event") {
           console.log("xue desp: ", msg)
-          if (msg.publishers)
-            msg.publishers.forEach((p) => newRemoteFeed(p.id));
+          if (msg.publishers){
+            msg.publishers.forEach((p) => newRemoteFeed(p.id, p.display));
+            msg.publishers.forEach((p) => console.log("xue id" + p.id + "xue display: " + p.display));
+          }
           if (msg.unpublished || msg.leaving) {
             const leavingId = msg.unpublished || msg.leaving;
             setRemoteFeeds((prev) => {
@@ -430,7 +446,7 @@ const JanusTest = () => {
 
         screenSharePluginRef.current.onmessage = (msg, jsep) => {
           if (msg.videoroom === "joined") {
-            addIdJanusToSocket(msg.id)
+            addIdJanusShareScreenToSocket(msg.id)
             screenSharePluginRef.current.createOffer({
               stream: screenStream,
               tracks: [
@@ -554,8 +570,12 @@ const JanusTest = () => {
 
 
 
-  const newRemoteFeed = (publisherId) => {
+  const newRemoteFeed = (publisherId, display) => {
     if (remoteFeeds.find((f) => f.feedId === publisherId)) return;
+
+    const isOwnScreenShare = currentUserRef.current.id_janus_share_screen === publisherId && display === "screen-share"; //debo actualizar de id_janus a id_janus_sharedscreen
+    console.log("xue isOwnScreenShare: " +  isOwnScreenShare)
+
     janusRef.current.attach({
       plugin: "janus.plugin.videoroom",
       success: (pluginHandle) => {
@@ -565,6 +585,12 @@ const JanusTest = () => {
 
         pluginHandle.onremotetrack = (track, mid, on) => {
           if (!on) return;
+
+          if (isOwnScreenShare && track.kind === "audio"){
+            console.log("xue ignore audio shared screen")
+            return;
+          }
+
           setRemoteFeeds((prev) => {
             const exists = prev.find((f) => f.feedId === publisherId);
             if (exists) {
