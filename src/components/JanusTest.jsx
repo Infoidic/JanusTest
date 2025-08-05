@@ -38,6 +38,7 @@ const JanusTest = () => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const screenTrackRef = useRef(null);
   const audioTrackRef = useRef(null);
+  const isSharing = useRef(null);
 
   const handleUserConnect = (data) => {
     if (data && data.data) {
@@ -475,6 +476,7 @@ const JanusTest = () => {
         };
 
         screenTrack.onended = () => {
+          console.log("xue in onended")
           stopScreenSharing();
         };
       },
@@ -507,6 +509,7 @@ const JanusTest = () => {
 
   const stopScreenSharing = async () => {
     if (!screenTrackRef.current) return;
+    console.log("xue stopScreenSharing")
 
     screenTrackRef.current.stop(); // Detener el track
     //setIsScreenSharing(false);
@@ -573,8 +576,7 @@ const JanusTest = () => {
   const newRemoteFeed = (publisherId, display) => {
     if (remoteFeeds.find((f) => f.feedId === publisherId)) return;
 
-    const isOwnScreenShare = currentUserRef.current.id_janus_share_screen === publisherId && display === "screen-share"; //debo actualizar de id_janus a id_janus_sharedscreen
-    console.log("xue isOwnScreenShare: " +  isOwnScreenShare)
+    const isOwnScreenShare = currentUserRef.current.id_janus_share_screen === publisherId && display === "screen-share"; 
 
     janusRef.current.attach({
       plugin: "janus.plugin.videoroom",
@@ -599,7 +601,7 @@ const JanusTest = () => {
             }
             const stream = new MediaStream([track]);
             const ref = React.createRef();
-            return [...prev, { feedId: publisherId, stream, ref, pluginHandle }];
+            return [...prev, { feedId: publisherId, stream, ref, pluginHandle, display }];
           });
         };
 
@@ -637,19 +639,19 @@ const JanusTest = () => {
 
 
   const configureShareScreen = () => {
-    const newStatus = !currentUser.status_screen;
+    const newStatus = !currentUserRef.current.status_screen;
     sendMessage({"type": "change_status", "action":"status_screen", "new_status": newStatus})
   }
 
   const configurePublisherVideoDinamic = () => {
-    const newStatus = !currentUser.status_video;
+    const newStatus = !currentUserRef.current.status_video;
     pluginHandleRef.current.send({ message: { request: "configure", video:newStatus } });
     sendMessage({"type": "change_status", "action":"status_video", "new_status": newStatus})
   };
 
 
   const configurePublisherAudioDinamic = () => {
-    const newStatus = !currentUser.status_microphone;
+    const newStatus = !currentUserRef.current.status_microphone;
     pluginHandleRef.current.send({ message: { request: "configure", audio:newStatus } });
     sendMessage({"type": "change_status", "action":"status_microphone", "new_status": newStatus})
   };

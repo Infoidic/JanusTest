@@ -1,23 +1,10 @@
 import React, {useEffect} from "react";
 
 const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
-  // Función auxiliar para encontrar al usuario por ID Janus
-
-  console.log("🟦 feeds initial:", feeds);
-  console.log("🟧 remoteusers initial:", remoteusers);
-  useEffect(() => {
-    console.log("🟦 feeds updated:", feeds);
-  }, [feeds]);
-
-  useEffect(() => {
-    console.log("🟧 remoteusers updated:", remoteusers);
-  }, [remoteusers]);
-
 
   const getUserByJanusId = (feedId) => {
     return remoteusers.find((user) => user.id_janus === feedId);
   };
-
 
 
   const getUserByJanusIdShareScreen = (feedId) => {
@@ -31,7 +18,6 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
       {feeds.map((f) => {
         var user = getUserByJanusId(f.feedId);
         if (user == undefined) {
-          //alert("entro")
           user = getUserByJanusIdShareScreen(f.feedId)
         }
         const channelName = user?.channel_name;
@@ -68,6 +54,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
             >
               <div><strong>Name: {userName}</strong></div>
               <div>ID: {f.feedId}</div>
+              <div>Display: {f.display}</div>
               
             </div>
 
