@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Janus from "janus-gateway";
 import adapter from "webrtc-adapter";
 import {useMeetSocket} from "../hooks/useMeetSocket";
@@ -14,6 +14,8 @@ const JanusTest = () => {
   const localStreamRef = useRef(null);
   const [janusInitialized, setJanusInitialized] = useState(false);
   const [remoteFeeds, setRemoteFeeds] = useState([]);
+  const [ownerShareScreen, setOwnerShareScreen] = useState({})
+  const ownerShareScreenRef = useRef({})
   const [currentSubstream, setCurrentSubstream] = useState(0);
   const currentRemoteSubstreamRef = useRef(currentSubstream);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -211,6 +213,7 @@ const JanusTest = () => {
     setRemoteFeeds([]);
     setRemoteUsers([]);
     setCurrentUser({});
+    setOwnerShareScreen({})
     setJanusInitialized(false);
     setSocketReady(false);
     setMeetIdUser('');
@@ -506,7 +509,6 @@ const JanusTest = () => {
   };
 
 
-
   const stopScreenSharing = async () => {
     if (!screenTrackRef.current) return;
     console.log("xue stopScreenSharing")
@@ -518,15 +520,13 @@ const JanusTest = () => {
     screenSharePluginRef.current.send({ message: { request: "unpublish" } });
     screenSharePluginRef.current.hangup();
     screenSharePluginRef.current.detach();
+    setOwnerShareScreen({});
+    screenTrackRef.current = null;
 
-    // Esperar un momento y luego re-atachar el plugin y volver a publicar cámara
     setTimeout(() => {
-      //attachPlugin();
-      configureShareScreen()
+      configureShareScreen();
     }, 500);
   };
-
-
 
 
   const shareScreenOld = async () => {
@@ -592,17 +592,27 @@ const JanusTest = () => {
             console.log("xue ignore audio shared screen")
             return;
           }
-
-          setRemoteFeeds((prev) => {
-            const exists = prev.find((f) => f.feedId === publisherId);
-            if (exists) {
-              exists.stream.addTrack(track);
-              return [...prev];
-            }
+          
+          if ( !isOwnScreenShare ) {
+            setRemoteFeeds((prev) => {
+              const exists = prev.find((f) => f.feedId === publisherId);
+              if (exists) {
+                exists.stream.addTrack(track);
+                return [...prev];
+              }
+              const stream = new MediaStream([track]);
+              const ref = React.createRef();
+              return [...prev, { feedId: publisherId, stream, ref, pluginHandle, display }];
+            });
+          } else {
             const stream = new MediaStream([track]);
             const ref = React.createRef();
-            return [...prev, { feedId: publisherId, stream, ref, pluginHandle, display }];
-          });
+            setOwnerShareScreen({ feedId: publisherId, stream, ref, pluginHandle, display });
+
+          }
+
+          
+
         };
 
         pluginHandle.onmessage = (msg, jsep) => {
@@ -666,11 +676,26 @@ const JanusTest = () => {
   };
 
 
+
+  const enrichedRemoteFeeds = useMemo(() => {
+    return remoteFeeds.map(feed => {
+      const matchingUser = 
+        remoteUsers.find(user => user.id_janus === feed.feedId) || 
+        remoteUsers.find(user => user.id_janus_share_screen === feed.feedId)
+
+      return {
+        ...feed,
+        data: matchingUser || null
+      };
+    });
+  }, [remoteFeeds, remoteUsers]);
+
+
   useEffect(() => {
-    remoteFeeds.forEach((f) => {
+    enrichedRemoteFeeds.forEach((f) => {
       if (f.ref.current) f.ref.current.srcObject = f.stream;
     });
-  }, [remoteFeeds]);
+  }, [enrichedRemoteFeeds]);
 
   useEffect(() => {
     currentRemoteSubstreamRef.current = currentSubstream;
@@ -689,6 +714,27 @@ const JanusTest = () => {
       }
     }
   }, [currentUser?.screen])
+
+  useEffect(() => {
+    if (!ownerShareScreen.stream) return;
+
+    // Asignar stream a video
+    if (ownerShareScreenRef.current) {
+      ownerShareScreenRef.current.srcObject = ownerShareScreen.stream;
+    }
+
+    return () => {
+      // Limpiar srcObject del video
+      if (ownerShareScreenRef.current) {
+        ownerShareScreenRef.current.srcObject = null;
+      }
+    };
+  }, [ownerShareScreen]);
+
+
+
+
+
 
 
   const enterCredendials = () => {
@@ -747,7 +793,17 @@ const JanusTest = () => {
       <h2>🎥 Janus VideoRoom React</h2>
       <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "480px", border: "2px solid green" }} />
       <br/>
-      <video ref={screenVideoRef} autoPlay playsInline muted width="300" style={{ width: "480px", border: "2px solid blue" }} />
+      {ownerShareScreen?.stream && (
+        <video
+          ref={ownerShareScreenRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ width: "480px", border: "2px solid blue" }}
+        />
+      )}
+
+
       <div>
         <button 
           onClick={() => configurePublisherAudioDinamic()}
@@ -780,8 +836,8 @@ const JanusTest = () => {
       </div>
 
       <VideoRemote 
-        feeds={remoteFeeds} 
-        remoteusers={remoteUsers} 
+        feeds={enrichedRemoteFeeds} 
+        currentusers={currentUser} 
         onRemoteAction={({type, action, new_status, channel_name}) => {
           sendMessage({
             type,

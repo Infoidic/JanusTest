@@ -1,34 +1,18 @@
 import React, {useEffect} from "react";
 
-const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
-
-  const getUserByJanusId = (feedId) => {
-    return remoteusers.find((user) => user.id_janus === feedId);
-  };
+const VideoRemote = ({ feeds, currentusers, onRemoteAction }) => {
 
 
-  const getUserByJanusIdShareScreen = (feedId) => {
-    return remoteusers.find((user) => user.id_janus_share_screen=== feedId);
-  };
-
-
+  useEffect(() => {
+    console.log("🔍 feeds recibidos en VideoRemote:", feeds);
+  }, [feeds]);
 
   return (
     <>
       {feeds.map((f) => {
-        var user = getUserByJanusId(f.feedId);
-        if (user == undefined) {
-          user = getUserByJanusIdShareScreen(f.feedId)
-        }
-        const channelName = user?.channel_name;
-        const statusMicrophone = user?.status_microphone;
-        const microphone = user?.microphone;
-        const userName = user?.name || "Desconocido";
-        const statusVideo = user?.status_video;
-        const video = user?.video;
-        const statusScree = user?.status_screen;
-        const screen = user?.screen;
+        //const userName = user?.name || "Desconocido";
         console.log("xue f : ", f)
+        //if (f.feedId === currentusers.id_janus_share_screen) return null;
         return (
           <div
             key={f.feedId}
@@ -52,7 +36,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
                 zIndex: 10,
               }}
             >
-              <div><strong>Name: {userName}</strong></div>
+              <div><strong>Name: {f.data?.name || "Desconocido"} </strong></div>
               <div>ID: {f.feedId}</div>
               <div>Display: {f.display}</div>
               
@@ -70,7 +54,7 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
             />
 
             <div
-              style={user ? {
+              style={f.data !== null ?{
                 position: "absolute",
                 bottom: 0,
                 width: "100%",
@@ -85,49 +69,49 @@ const VideoRemote = ({ feeds, remoteusers, onRemoteAction }) => {
               }: undefined}
               >
               <div 
-                style={user ? { display: "flex", gap: "8px" } : undefined}
+                style={f.data !== null ? { display: "flex", gap: "8px" } : undefined}
               >
                 <button 
                   onClick={() => 
                     onRemoteAction({
                       type:"change_status_user_meet",
                       action: "microphone",
-                      new_status:!microphone,
-                      channel_name: channelName
+                      new_status:!f.data.microphone,
+                      channel_name: f.data?.channel_name
                     })
                   }
-                  hidden={!user}
+                  hidden={f.data === null}
                 >
-                  {statusMicrophone ? "🎤" : "🔇"} / 
-                  {microphone ? "🔒🟢" : "🔓🚫"}
+                  {f.data?.status_microphone ? "🎤" : "🔇"} / 
+                  {f.data?.microphone ? "🔒🟢" : "🔓🚫"}
                 </button>
                 <button 
                   onClick={() => 
                     onRemoteAction({
                       type:"change_status_user_meet",
                       action: "video",
-                      new_status:!video,
-                      channel_name: channelName
+                      new_status:!f.data?.video,
+                      channel_name: f.data?.channel_name
                     })
                   }
-                  hidden={!user}
+                  hidden={f.data === null}
                 >
-                  {statusVideo ? "📷" : "📷🚫"} / 
-                  {video ? "🔒🟢" : "🔓🚫"}
+                  {f.data?.status_video ? "📷" : "📷🚫"} / 
+                  {f.data?.video ? "🔒🟢" : "🔓🚫"}
                 </button>
                 <button
                   onClick={() => 
                     onRemoteAction({
                       type:"change_status_user_meet",
                       action: "screen",
-                      new_status:!screen,
-                      channel_name: channelName
+                      new_status:!f.data.screen,
+                      channel_name: f.data.channel_name
                     })
                   }
-                  hidden={!user}
+                  hidden={f.data === null}
                 >
-                  {statusScree ? "🖥️" : "🖥️🚫"} / 
-                  {screen ? "🔒🟢" : "🔓🚫"}
+                  { f.data?.status_screen ? "🖥️" : "🖥️🚫"} / 
+                  {f.data?.screen ? "🔒🟢" : "🔓🚫"}
                 </button>
               </div>
             </div>
