@@ -37,6 +37,9 @@ const JanusTest = () => {
   //Fabian
   const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MTg2NDM1LCJpYXQiOjE3NTQzMjI0MzUsImp0aSI6ImVjYmI4ZDI1ZjNiZjQyNTg5MTdjMDU2MWRiMjE3OWM3IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.DoKT7s6ZX3ri2B9NPZNrWLmIMx3sb2s0T2DjHcYQxug')
 
+  const tokenUserThree = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1Mzc0Mjk0LCJpYXQiOjE3NTQ1MTAyOTQsImp0aSI6IjcwNzAzYmUwZTg2YTQ4OTk5ZTVjMDdlNGYwOWI1ZmM3IiwidXNlcl9pZCI6ImNhM2ViYzJhLTFiY2MtNDdkZi05ZDBhLWE4NjgzZWQ3NWQ3OSJ9.he-DlJUMumh7qt1KIdlOV8Kk-IW3zbpUco6qzc7grqQ')
+
+
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const screenTrackRef = useRef(null);
   const audioTrackRef = useRef(null);
@@ -176,6 +179,7 @@ const JanusTest = () => {
     console.log("🔸 Mensaje desde backend:", data);
     if (!data?.type) {
       console.warn("⚠️ Messaje receive without type valid:", data);
+      alert("⚠️ Messaje receive without type valid:" + JSON.stringify(data));
       return;
     }
 
@@ -404,9 +408,12 @@ const JanusTest = () => {
 
         setTimeout(() => {
           pluginHandleRef.current.send({
-            message: { request: "configure", audio: currentUser.status_microphone }
+            message: { 
+              request: "configure", 
+              audio: currentUser.status_microphone, 
+              video: currentUser.status_screen }
           }); // pasa algo cuando uso en vez de audio video
-        }, 500);
+        }, 2000);
 
 
         //setTimeout(() => {
@@ -767,6 +774,11 @@ const JanusTest = () => {
       tokenUseraux = tokenUserTwo.current
       setTokenUser(tokenUserTwo.current)
     }
+    if (user === "three") {
+      console.log(user)
+      tokenUseraux = tokenUserThree.current
+      setTokenUser(tokenUserThree.current)
+    }
   
 
     if (meetVal && tokenUseraux) {
@@ -788,19 +800,75 @@ const JanusTest = () => {
       <button onClick={enterCredendials}>Enter credentials</button>
       <button onClick={ () => credentialsUser("one")}>Enter user 1</button>
       <button onClick={ () => credentialsUser("two")}>Enter user 2</button>
+      <button onClick={ () => credentialsUser("three")}>Enter user 3</button>
       <br/>
       <button onClick={disconnectAll}>❌ Desconectar</button>
       <h2>🎥 Janus VideoRoom React</h2>
-      <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "480px", border: "2px solid green" }} />
-      <br/>
+
+
+      <div
+          style={{
+            position: "relative",
+            display: "inline-block",
+            margin: "5px",
+          }}
+          >
+          <div
+            style={{
+              backgroundColor: "rgba(0, 0, 255, 0.7)",
+              color: "white",
+              padding: "2px 6px",
+              fontSize: "12px",
+              borderTopLeftRadius: "4px",
+              borderTopRightRadius: "4px",
+            }}
+          >
+
+            <div><strong>Name: {currentUser.name} </strong></div>
+            <div><strong>Device: {isMobile ? "Mobile" : "Desktop"} </strong></div>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ width: "480px", border: "2px solid blue" }}
+            />
+        </div>
+      </div>
+
+
       {ownerShareScreen?.stream && (
-        <video
-          ref={ownerShareScreenRef}
-          autoPlay
-          playsInline
-          muted
-          style={{ width: "480px", border: "2px solid blue" }}
-        />
+
+
+        <div
+          style={{
+            position: "relative",
+            display: "inline-block",
+            margin: "5px",
+          }}
+          >
+          <div
+            style={{
+              backgroundColor: "rgba(0, 0, 255, 0.7)",
+              color: "white",
+              padding: "2px 6px",
+              fontSize: "12px",
+              borderTopLeftRadius: "4px",
+              borderTopRightRadius: "4px",
+            }}
+          >
+
+            <div><strong>Name: {currentUser.name} </strong></div>
+            <div><strong>Share Screen </strong></div>
+            <video
+              ref={ownerShareScreenRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ width: "480px", border: "2px solid blue" }}
+            />
+        </div>
+      </div>
       )}
 
 

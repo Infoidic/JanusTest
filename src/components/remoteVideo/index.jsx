@@ -48,7 +48,7 @@ const VideoRemote = ({ feeds, currentusers, onRemoteAction }) => {
               autoPlay
               playsInline
               style={{
-                width: "320px",
+                width: "700px",
                 border: "2px solid blue",
               }}
             />
