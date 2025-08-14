@@ -21,7 +21,7 @@ const JanusTest = () => {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
   const [socketReady, setSocketReady] = useState(false); 
-  
+  const [isRecord, setIsRecord] = useState(false)
 
   const [meetIdUser, setMeetIdUser] = useState('');
   const [tokenUser, setTokenUser] = useState('');
@@ -33,11 +33,11 @@ const JanusTest = () => {
   // provisional
   const meetId = useRef('33123b53-3bfb-4c19-8559-90e89f467b2e')
   //rafaelromariorv@gmail.com
-  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MTg2Njc2LCJpYXQiOjE3NTQzMjI2NzYsImp0aSI6IjY1YTcxZmEwMGQxYjQzNWM4YThmNTA4MjM0NzNiZWM3IiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.FR3Nf-H4n19PmKCvKQqbokiuRJ2K8HkFCGBdsik7BXc')
+  const tokenUserOne = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzODI4NjQwLCJpYXQiOjE3NTUxODg2NDAsImp0aSI6IjZkYjgyYjhlOTQ0MTRhMzU5MmU4MTNmMTRkN2UwOTc0IiwidXNlcl9pZCI6ImQ2OWE1YzU1LTgxZjctNDlmMS1iZGY0LTM0ZGQ5MTQxOGRhMiJ9.Ez3zKzagm_Brnj9BtGv0nJGCacBCEcvMsbYdLMJssrA')
   //Fabian
-  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MTg2NDM1LCJpYXQiOjE3NTQzMjI0MzUsImp0aSI6ImVjYmI4ZDI1ZjNiZjQyNTg5MTdjMDU2MWRiMjE3OWM3IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.DoKT7s6ZX3ri2B9NPZNrWLmIMx3sb2s0T2DjHcYQxug')
+  const tokenUserTwo = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzODI4NzE2LCJpYXQiOjE3NTUxODg3MTYsImp0aSI6IjVlYTczN2QwZmYwNjQyNTM4NmZiYmNhN2IwMmVkNGM0IiwidXNlcl9pZCI6ImM2ZTNkOTIzLWQxNGQtNDYwYi1iYWY5LTcxMzIwOWRjNmZmMyJ9.sd3ctgveaIynP7Mb2nd5WAyfogfZ4c0WpAK5jU4GjXE')
 
-  const tokenUserThree = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1Mzc0Mjk0LCJpYXQiOjE3NTQ1MTAyOTQsImp0aSI6IjcwNzAzYmUwZTg2YTQ4OTk5ZTVjMDdlNGYwOWI1ZmM3IiwidXNlcl9pZCI6ImNhM2ViYzJhLTFiY2MtNDdkZi05ZDBhLWE4NjgzZWQ3NWQ3OSJ9.he-DlJUMumh7qt1KIdlOV8Kk-IW3zbpUco6qzc7grqQ')
+  const tokenUserThree = useRef('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzODQ2NDUyLCJpYXQiOjE3NTUyMDY0NTIsImp0aSI6IjY5ZDMwMTUwY2IyYTQ4MWJiZmQ1NDNhYTllMjBmNTJlIiwidXNlcl9pZCI6ImNhM2ViYzJhLTFiY2MtNDdkZi05ZDBhLWE4NjgzZWQ3NWQ3OSJ9.AipQrRiOv3P2iyIp09IpYjincP9J87DCQahG18LRGS0')
 
 
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -145,11 +145,11 @@ const JanusTest = () => {
       if (currentUserRef.current.id_user == data.data.id_user){
         setCurrentUser(data.data)
         console.log("xue1 " + JSON.stringify(data.data))
-        if (data.action === "microphone") {
+        if (data.action === "microphone" || data.action === "status_microphone") {
           console.log("xue1 jaja")
           configurePublisherAudioRemote(data.data.status_microphone)
         }
-        if (data.action === "video"){
+        if (data.action === "video" || data.action === "status_video"){
           console.log("xue1 jaja: " + data.data.status_video)
           configurePublisherVideoRemote(data.data.status_video)
         }
@@ -322,6 +322,21 @@ const JanusTest = () => {
           //alert("conectado")
 
           addIdJanusToSocket(msg.id)
+
+          //xue record
+          //pluginHandleRef.current.send({
+          //  message: {
+          //    request: "configure",
+          //    record: true,
+          //    filename: `/home/video/${meetIdUser}/${currentUser.id_user}`,
+          //    bitrate: 512000, // 512 kbps (ajustable)
+          //  },
+          //});
+
+
+
+
+
           if (msg.publishers){
             msg.publishers.forEach((p) => newRemoteFeed(p.id, p.display));
           }
@@ -365,7 +380,16 @@ const JanusTest = () => {
     });
   };
 
-
+  const recordVideoRoom = () => {
+    pluginHandleRef.current.send({
+      message: {
+        request: "configure",
+        record: true,
+        filename: `/home/video/${meetIdUser}/${currentUser.id_user}`,
+        bitrate: 512000, // 512 kbps (ajustable)
+      },
+    });
+  }
 
 
   const startCamera = async () => {
@@ -478,6 +502,19 @@ const JanusTest = () => {
               },
               error: (err) => console.error("❌ Error al crear oferta para pantalla:", err),
             });
+
+
+            //pluginHandleRef.current.send({
+            //  message: {
+            //    request: "configure",
+            //    audio: true,
+            //    video: true,
+            //    record: true,
+            //    filename: `grabacion_${msg["room"]}_${myId}`,
+            //  },
+            //});
+
+
           }
 
           if (jsep) {
@@ -570,6 +607,7 @@ const JanusTest = () => {
     pluginHandleRef.current.send({ message: { request: "unpublish" } });
     pluginHandleRef.current.hangup();
     pluginHandleRef.current.detach();
+    pluginHandleRef.current = null;
 
     // Esperar un momento y luego re-atachar el plugin y volver a publicar cámara
     setTimeout(() => {
@@ -891,6 +929,15 @@ const JanusTest = () => {
         >
           {currentUser.status_screen ? "❌ Dejar de Compartir" : "📺 Compartir Pantalla"}
         </button>
+
+
+        <button 
+          onClick={recordVideoRoom}
+          disabled={!currentUser.owner}
+        > 
+          {currentUser.owner ? "Record" : "Stop Record" } 
+        </button>
+
       </div>
       <h3>👥 Participantes Remotos</h3>
       <div>

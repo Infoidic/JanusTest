@@ -71,6 +71,23 @@ const VideoRemote = ({ feeds, currentusers, onRemoteAction }) => {
               <div 
                 style={f.data !== null ? { display: "flex", gap: "8px" } : undefined}
               >
+
+              
+                <button 
+                  onClick={() => 
+                    onRemoteAction({
+                      type:"change_status_user_meet",
+                      action: "status_microphone",
+                      new_status:!f.data.status_microphone,
+                      channel_name: f.data?.channel_name
+                    })
+                  }
+                  hidden={f.data === null}
+                  disabled={f.data?.status_microphone === false }
+                >
+                  {f.data?.status_microphone ? "🎤" : "🔇"}
+                </button>
+
                 <button 
                   onClick={() => 
                     onRemoteAction({
@@ -85,6 +102,24 @@ const VideoRemote = ({ feeds, currentusers, onRemoteAction }) => {
                   {f.data?.status_microphone ? "🎤" : "🔇"} / 
                   {f.data?.microphone ? "🔒🟢" : "🔓🚫"}
                 </button>
+
+
+                <button 
+                  onClick={() => 
+                    onRemoteAction({
+                      type:"change_status_user_meet",
+                      action: "status_video",
+                      new_status:!f.data?.status_video,
+                      channel_name: f.data?.channel_name
+                    })
+                  }
+                  hidden={f.data === null}
+                  disabled={f.data?.status_video === false}
+                >
+                  {f.data?.status_video ? "📷" : "📷🚫"} 
+                </button>
+
+
                 <button 
                   onClick={() => 
                     onRemoteAction({
