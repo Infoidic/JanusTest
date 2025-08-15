@@ -163,6 +163,43 @@ const JanusTest = () => {
     }
   }
 
+  const handleChangeStatusAllParticipants = (data) => {
+    if (data.status === "success") {
+      data.data.forEach((userData) => {
+        console.log("xue all 00")
+        if (currentUserRef.current.id_user == userData.id_user) {
+          console.log(userData)
+          setCurrentUser(userData);
+          console.log("xue all 01")
+        
+
+          if (data.action === "microphone" || data.action === "status_microphone") {
+            configurePublisherAudioRemote(userData.status_microphone);
+            console.log("xue all")
+            console.log("xue all" + userData.status_microphone)
+            console.log("xue all" + userData.name)
+          }
+
+          if (data.action === "video" || data.action === "status_video") {
+            configurePublisherVideoRemote(userData.status_video);
+          }
+        } else {
+          // Para otros usuarios
+          handleChangeStatus({
+            ...data,
+            data: userData
+          });
+        }
+      });
+    }
+
+    if (data.status === "error") {
+      alert("Error: " + data.message);
+    }
+
+  }
+
+
   const socketHandlers = {
     "user_connect": handleUserConnect,
     "user_disconnect": handleUserDisconnect,
@@ -172,6 +209,7 @@ const JanusTest = () => {
     "change_status": handleChangeStatus,
     "users": handleAddPreviousUsers,
     "change_status_user_meet": handleChangeStatusUserMeet,
+    "change_status_all_participants": handleChangeStatusAllParticipants
   };
 
 
@@ -435,7 +473,7 @@ const JanusTest = () => {
             message: { 
               request: "configure", 
               audio: currentUser.status_microphone, 
-              video: currentUser.status_screen }
+              video: currentUser.status_video }
           }); // pasa algo cuando uso en vez de audio video
         }, 2000);
 
@@ -568,7 +606,8 @@ const JanusTest = () => {
     screenTrackRef.current = null;
 
     setTimeout(() => {
-      configureShareScreen();
+      if (currentUser.status_screen == true) configureShareScreen();
+      addIdJanusShareScreenToSocket(null)
     }, 500);
   };
 
@@ -753,12 +792,11 @@ const JanusTest = () => {
 
   useEffect(() => {
     if (currentUser){
-      if (currentUser.screen === false) {
+      if (currentUser.status_screen === false) {
         stopScreenSharing();
-        //send message update microphone
       }
     }
-  }, [currentUser?.screen])
+  }, [currentUser?.status_screen])
 
   useEffect(() => {
     if (!ownerShareScreen.stream) return;
@@ -927,9 +965,11 @@ const JanusTest = () => {
           onClick={ currentUser.status_screen ? stopScreenSharing : shareScreen }
           disabled={!currentUser.screen}
         >
-          {currentUser.status_screen ? "❌ Dejar de Compartir" : "📺 Compartir Pantalla"}
+          {currentUser.status_screen ? "❌ Dejar de Compartir" : "📺 Compartir Pantalla"} 
         </button>
 
+        <br/>
+        
 
         <button 
           onClick={recordVideoRoom}
@@ -937,7 +977,112 @@ const JanusTest = () => {
         > 
           {currentUser.owner ? "Record" : "Stop Record" } 
         </button>
+      
+        <br/><hr/>
+        <h3>all actions</h3>
+        
+        <br/><hr/>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "status_microphone",
+              new_status: false
+            })
+          }}
+        >
+          🔇
+        </button>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "microphone",
+              new_status: false
+            })
+          }}
+        >
+          🔇🔓🚫
+        </button>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "microphone",
+              new_status: true
+            })
+          }}
+        >
+          🔇🔓🟢
+        </button>
 
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "status_video",
+              new_status: false
+            })
+          }}
+        >
+          📷🚫
+        </button>
+
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "video",
+              new_status: false
+            })
+          }}
+        >
+          📷🔓🚫
+        </button>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "video",
+              new_status: true
+            })
+          }}
+        >
+          📷🔓🟢
+        </button>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "status_screen",
+              new_status: false
+            })
+          }}
+        >
+          🖥️🚫
+        </button>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "screen",
+              new_status: false
+            })
+          }}
+        >
+          🖥️🔓🚫
+        </button>
+        <button
+          onClick = { () => {
+            sendMessage({
+              type:"change_status_all_participants",
+              action: "screen",
+              new_status: true
+            })
+          }}
+        >
+          🖥️🔓🟢
+        </button>
       </div>
       <h3>👥 Participantes Remotos</h3>
       <div>

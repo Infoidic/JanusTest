@@ -134,6 +134,22 @@ const VideoRemote = ({ feeds, currentusers, onRemoteAction }) => {
                   {f.data?.status_video ? "📷" : "📷🚫"} / 
                   {f.data?.video ? "🔒🟢" : "🔓🚫"}
                 </button>
+
+                <button
+                  onClick={() => 
+                    onRemoteAction({
+                      type:"change_status_user_meet",
+                      action: "status_screen",
+                      new_status:!f.data.status_screen,
+                      channel_name: f.data.channel_name
+                    })
+                  }
+                  hidden={f.data === null}
+                  disabled={f.data?.status_screen === false}
+                >
+                  { f.data?.status_screen ? "🖥️" : "🖥️🚫"}
+                </button>
+
                 <button
                   onClick={() => 
                     onRemoteAction({
