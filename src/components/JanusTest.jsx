@@ -333,6 +333,7 @@ const JanusTest = () => {
       server: "wss://webrtc.testlorotest.xyz:8989/janus",
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
       success: attachPlugin,
+      error: (err) => { console.error(err); }
     });
 
     return () => {
