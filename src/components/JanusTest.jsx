@@ -30,6 +30,12 @@ const JanusTest = () => {
   const [remoteUsers, setRemoteUsers] = useState([])
   const [currentUser, setCurrentUser] = useState({})
   const currentUserRef = useRef(currentUser)
+
+  // Record
+  const [currentRecord, setCurrentRecord] = useState(false);
+  const currentRecordRef = useRef()
+
+
   // provisional
   const meetId = useRef('33123b53-3bfb-4c19-8559-90e89f467b2e')
   //rafaelromariorv@gmail.com
@@ -45,11 +51,21 @@ const JanusTest = () => {
   const audioTrackRef = useRef(null);
   const isSharing = useRef(null);
 
+
+
+
+
+
+
+
   const handleUserConnect = (data) => {
     if (data && data.data) {
       console.log("connected user ", data.data);
       setCurrentUser(data.data);
       sendMessage({"type":"users"})
+      setTimeout(() => {
+        sendMessage({"type":"get_record_meet"})
+      }, 1000)
     } else {
       console.warn("Invalid user data received", data);
     }
@@ -114,6 +130,12 @@ const JanusTest = () => {
       const updatedUser = data.data;
       if (currentUserRef.current.id_user == updatedUser.id_user){
         setCurrentUser(data.data)
+        if (data.action === "status_microphone"){
+          pluginHandleRef.current.send({ message: { request: "configure", audio:data.data.status_microphone } });
+        }
+        if (data.action === "status_video"){
+          pluginHandleRef.current.send({ message: { request: "configure", video:data.data.status_video } });
+        }
 
       } else {
         console.log("xue remote update: " + JSON.stringify(data))
@@ -200,6 +222,16 @@ const JanusTest = () => {
   }
 
 
+  const handleRecordMeet = (data) => {
+    if (data.status === "success") {
+      setCurrentRecord(data.data)
+      currentRecordRef.current = data.data
+      console.log("xue record handle: data.data "+ JSON.stringify(data.data))
+      console.log("xue record handle: currentRecord "+ currentRecordRef.current?.recording)
+      if (typeof(data.data?.recording) === 'boolean') recordVideoRoom()
+    }
+  }
+
   const socketHandlers = {
     "user_connect": handleUserConnect,
     "user_disconnect": handleUserDisconnect,
@@ -209,7 +241,11 @@ const JanusTest = () => {
     "change_status": handleChangeStatus,
     "users": handleAddPreviousUsers,
     "change_status_user_meet": handleChangeStatusUserMeet,
-    "change_status_all_participants": handleChangeStatusAllParticipants
+    "change_status_all_participants": handleChangeStatusAllParticipants,
+    // handle records:
+    "get_record_meet": handleRecordMeet,
+    "create_record_meet": handleRecordMeet, 
+    "stop_record_meet": handleRecordMeet
   };
 
 
@@ -419,11 +455,13 @@ const JanusTest = () => {
   };
 
   const recordVideoRoom = () => {
+    const datetimeUTC = new Date();
+    console.log("xue se va a : " + currentRecordRef.current?.recording)
     pluginHandleRef.current.send({
       message: {
         request: "configure",
-        record: true,
-        filename: `/home/video/${meetIdUser}/${currentUser.id_user}`,
+        record: currentRecordRef.current?.recording ,
+        filename: `/home/video/${meetIdUser}/${currentUserRef.current.id_user}_datetime:${datetimeUTC.toISOString()}`,
         bitrate: 512000, // 512 kbps (ajustable)
       },
     });
@@ -541,7 +579,7 @@ const JanusTest = () => {
               error: (err) => console.error("❌ Error al crear oferta para pantalla:", err),
             });
 
-
+            //recordVideoRoom(true);
             //pluginHandleRef.current.send({
             //  message: {
             //    request: "configure",
@@ -739,14 +777,12 @@ const JanusTest = () => {
 
   const configurePublisherVideoDinamic = () => {
     const newStatus = !currentUserRef.current.status_video;
-    pluginHandleRef.current.send({ message: { request: "configure", video:newStatus } });
     sendMessage({"type": "change_status", "action":"status_video", "new_status": newStatus})
   };
 
 
   const configurePublisherAudioDinamic = () => {
     const newStatus = !currentUserRef.current.status_microphone;
-    pluginHandleRef.current.send({ message: { request: "configure", audio:newStatus } });
     sendMessage({"type": "change_status", "action":"status_microphone", "new_status": newStatus})
   };
 
@@ -759,6 +795,21 @@ const JanusTest = () => {
     pluginHandleRef.current.send({ message: { request: "configure", video:state } });
   };
 
+  const configureRecordVideoRoom = () => {
+    const newStatus = (currentRecordRef.current?.recording === undefined) ? true : !currentRecordRef.current?.recording
+    console.log("xue record obj: " + JSON.stringify(currentRecordRef.current) )
+    console.log("xue record: " + newStatus )
+    //alert(newStatus)
+    if (newStatus === true) {
+      console.log("xue record: create: " + newStatus )
+      sendMessage({"type": "create_record_meet"})
+    } else {
+      console.log("xue record: stop: " + newStatus )
+      sendMessage({"type": "stop_record_meet"})
+    }
+
+
+  };
 
 
   const enrichedRemoteFeeds = useMemo(() => {
@@ -815,7 +866,9 @@ const JanusTest = () => {
   }, [ownerShareScreen]);
 
 
-
+  useEffect(() => {
+    currentRecordRef.current = currentRecord
+  }, [currentRecord])
 
 
 
@@ -972,10 +1025,9 @@ const JanusTest = () => {
         
 
         <button 
-          onClick={recordVideoRoom}
-          disabled={!currentUser.owner}
+          onClick={configureRecordVideoRoom}
         > 
-          {currentUser.owner ? "Record" : "Stop Record" } 
+          {currentRecord?.recording ? "Stop Record" : "Record" } 
         </button>
       
         <br/><hr/>
