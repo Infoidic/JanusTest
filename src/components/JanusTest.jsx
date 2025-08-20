@@ -314,7 +314,7 @@ const JanusTest = () => {
 
 	useEffect(() => {
 		if (socketReady && !janusInitialized) {
-			window.janus.init({
+			window.Janus.init({
 				debug: 'all',
 				callback: () => setJanusInitialized(true),
 			})
@@ -324,7 +324,7 @@ const JanusTest = () => {
 
 	useEffect(() => {
 		if (!janusInitialized) return
-		janusRef.current = new window.janus({
+		janusRef.current = new window.Janus({
 			server: 'wss://webrtc.testlorotest.xyz:8989/janus',
 			iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 			success: attachPlugin,

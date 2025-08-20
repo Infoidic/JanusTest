@@ -3817,6 +3817,6 @@ var Janus = (function (factory) {
 	return Janus
 })
 
-window.janus = Janus
+// window.Janus = Janus
 
 export { Janus as default }
