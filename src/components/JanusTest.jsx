@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 // import Janus from "janus-gateway";
-import '../lib/janus'
 import adapter from 'webrtc-adapter'
 import { useMeetSocket } from '../hooks/useMeetSocket'
 import VideoRemote from './remoteVideo'
 window.adapter = adapter
+
+// const Janus = window.janus
 
 const JanusTest = () => {
 	const janusRef = useRef(null)
@@ -313,13 +314,17 @@ const JanusTest = () => {
 
 	useEffect(() => {
 		if (socketReady && !janusInitialized) {
-			Janus.init({ debug: 'all', callback: () => setJanusInitialized(true) })
+			window.janus.init({
+				debug: 'all',
+				callback: () => setJanusInitialized(true),
+			})
+			// Janus.init({ debug: 'all', callback: () => setJanusInitialized(true) })
 		}
 	}, [socketReady])
 
 	useEffect(() => {
 		if (!janusInitialized) return
-		janusRef.current = new Janus({
+		janusRef.current = new window.janus({
 			server: 'wss://webrtc.testlorotest.xyz:8989/janus',
 			iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 			success: attachPlugin,
